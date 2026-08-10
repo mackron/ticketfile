@@ -143,6 +143,15 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
     }
 
     try {
+        const openDocument = vscode.workspace.textDocuments.find((document) =>
+            document.uri.toString() === ticketItem.resourceUri.toString()
+        );
+
+        if (openDocument !== undefined && openDocument.isDirty) {
+            vscode.window.showErrorMessage("Save ticket changes before changing its status.");
+            return;
+        }
+
         const fileData = await vscode.workspace.fs.readFile(ticketItem.resourceUri);
         const text = Buffer.from(fileData).toString("utf8");
         const statusRange = findStatusRange(text);
@@ -157,10 +166,20 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
             return;
         }
 
-        const updatedText = text.substring(0, statusRange.offset) + status + text.substring(statusRange.offset + statusRange.length);
+        const author = await getCommentAuthor();
+        const updatedStatusText = text.substring(0, statusRange.offset) +
+            status +
+            text.substring(statusRange.offset + statusRange.length);
+        const separator = updatedStatusText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
+        const historyEntry = `${separator}${getCurrentDate()} - ${author}\n\nChanged status to ${status}.\n`;
+        const updatedText = updatedStatusText + historyEntry;
 
         await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
         ticketProvider.refresh();
+
+        if (author === "<Insert Name>") {
+            vscode.window.showWarningMessage("Status was changed without an author name.");
+        }
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to update ticket. ${error.message}`);
     }
