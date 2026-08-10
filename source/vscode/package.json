@@ -84,6 +84,21 @@
                     "command": "ticketfile.reopenTicket",
                     "when": "view == ticketfile.tickets && viewItem == closedTicket",
                     "group": "inline@1"
+                },
+                {
+                    "command": "ticketfile.openTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /Ticket$/",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "ticketfile.closeTicket",
+                    "when": "view == ticketfile.tickets && viewItem == openTicket",
+                    "group": "1_modification@1"
+                },
+                {
+                    "command": "ticketfile.reopenTicket",
+                    "when": "view == ticketfile.tickets && viewItem == closedTicket",
+                    "group": "1_modification@1"
                 }
             ]
         },
