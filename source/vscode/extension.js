@@ -354,7 +354,7 @@ class TicketProvider
         }
 
         for (const [fileName, fileType] of entries) {
-            if (fileType !== vscode.FileType.File) {
+            if (fileType !== vscode.FileType.File || fileName.includes(".ticketfile-tmp-")) {
                 continue;
             }
 

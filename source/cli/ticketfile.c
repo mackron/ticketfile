@@ -678,6 +678,10 @@ static int list_tickets(const char* pStatus)
         size_t fileDataSize;
         ticket parsedTicket;
 
+        if (strstr(pIterator->pName, ".ticketfile-tmp-") != NULL) {
+            continue;
+        }
+
         /* For now, just use the file name for the ID, but maybe later we can parse the file name to just take the first part which we assume is the ID. */
         pID = pIterator->pName;
         idLength = pIterator->nameLen;
