@@ -54,6 +54,11 @@
                 "command": "ticketfile.reopenTicket",
                 "title": "Reopen Ticket",
                 "icon": "$(history)"
+            },
+            {
+                "command": "ticketfile.deleteTicket",
+                "title": "Delete Ticket",
+                "icon": "$(trash)"
             }
         ],
         "menus": {
@@ -99,6 +104,11 @@
                     "command": "ticketfile.reopenTicket",
                     "when": "view == ticketfile.tickets && viewItem == closedTicket",
                     "group": "1_modification@1"
+                },
+                {
+                    "command": "ticketfile.deleteTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /Ticket$/",
+                    "group": "2_danger@1"
                 }
             ]
         },

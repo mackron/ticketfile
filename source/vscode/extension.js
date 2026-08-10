@@ -130,6 +130,34 @@ async function openTicket(ticketItem)
     }
 }
 
+async function deleteTicket(ticketItem, ticketProvider)
+{
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket to delete.");
+        return;
+    }
+
+    const confirmation = await vscode.window.showWarningMessage(
+        `Delete ${ticketItem.label}?`,
+        { modal: true },
+        "Move to Trash"
+    );
+
+    if (confirmation !== "Move to Trash") {
+        return;
+    }
+
+    try {
+        await vscode.workspace.fs.delete(ticketItem.resourceUri, {
+            recursive: false,
+            useTrash: true
+        });
+        ticketProvider.refresh();
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to delete ticket. ${error.message}`);
+    }
+}
+
 class TicketGroup extends vscode.TreeItem
 {
     constructor(label, status, collapsibleState)
@@ -324,8 +352,11 @@ function activate(context)
     const reopenTicketCommand = vscode.commands.registerCommand("ticketfile.reopenTicket", (ticketItem) => {
         return updateTicketStatus(ticketItem, "open", ticketProvider);
     });
+    const deleteTicketCommand = vscode.commands.registerCommand("ticketfile.deleteTicket", (ticketItem) => {
+        return deleteTicket(ticketItem, ticketProvider);
+    });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, openTicketCommand, closeTicketCommand, reopenTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, openTicketCommand, closeTicketCommand, reopenTicketCommand, deleteTicketCommand
     );
 
     let watcherDisposables = [];
