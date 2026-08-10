@@ -10,16 +10,42 @@ static fs_file* STDERR = NULL;
 
 static const char* g_pTicketsFolder = "tickets";
 
-static void print_usage(const char* executablePath)
+static void print_usage(const char* pExecutablePath)
 {
-    fs_file_writef(STDOUT, "Usage:\n");
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [<tag:value> ...]\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] edit <id>\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id> [--no-comment]\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id> [--no-comment]\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] comment <id>\n", executablePath);
+    fs_file_writef(STDOUT, "USAGE:\n");
+    fs_file_writef(STDOUT,"    %s [<global args>] <command> [<args>]\n", pExecutablePath);
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "OPTIONS:\n");
+    fs_file_writef(STDOUT, "    -h, --help\n");
+    fs_file_writef(STDOUT, "        Show this help text.\n");
+    fs_file_writef(STDOUT, "    -d <path>, --directory <path>\n");
+    fs_file_writef(STDOUT, "        Use <path> as the tickets directory. Default: tickets.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "COMMANDS:\n");
+    fs_file_writef(STDOUT, "    list [<tag:value> ...]\n");
+    fs_file_writef(STDOUT, "        List tickets that match all valid metadata filters.\n");
+    fs_file_writef(STDOUT, "        Invalid filters are ignored. With no filters, list all.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    show <id>\n");
+    fs_file_writef(STDOUT, "        Write the complete ticket file to standard output.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    edit <id>\n");
+    fs_file_writef(STDOUT, "        Open the ticket in VISUAL, EDITOR, or the default editor.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    close <id> [--no-comment]\n");
+    fs_file_writef(STDOUT, "        Set status to closed and append a dated history entry.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    reopen <id> [--no-comment]\n");
+    fs_file_writef(STDOUT, "        Set status to open and append a dated history entry.\n");
+    fs_file_writef(STDOUT, "        Use --no-comment to change status without a history entry.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    new [-m <text> | --message <text> |\n");
+    fs_file_writef(STDOUT, "         -F <path> | --file <path>]\n");
+    fs_file_writef(STDOUT, "        Create an open ticket. Without input, open an editor.\n");
+    fs_file_writef(STDOUT, "        Use -m for inline text or -F to read text from a file.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    comment <id>\n");
+    fs_file_writef(STDOUT, "        Open an editor and append a dated comment to the ticket.\n");
 }
 
 
@@ -1469,7 +1495,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (strcmp(argv[argumentIndex], "--tickets-folder") == 0 || strcmp(argv[argumentIndex], "-t") == 0) {
+    if (strcmp(argv[argumentIndex], "--directory") == 0 || strcmp(argv[argumentIndex], "-d") == 0) {
         if (argc <= argumentIndex + 1 || argv[argumentIndex + 1][0] == '\0') {
             fs_file_writef(STDERR, "The %s option requires a path.\n", argv[argumentIndex]);
             print_usage(argv[0]);
