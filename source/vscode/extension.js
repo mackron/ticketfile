@@ -12,9 +12,13 @@ class TicketGroup extends vscode.TreeItem
 
 class TicketItem extends vscode.TreeItem
 {
-    constructor(fileName, status)
+    constructor(fileName, status, title)
     {
-        const label = /^\d+$/.test(fileName) ? `#${fileName}` : fileName;
+        let label = fileName;
+
+        if (/^\d+$/.test(fileName)) {
+            label = title === undefined ? `#${fileName}` : `#${fileName} ${title}`;
+        }
 
         super(label, vscode.TreeItemCollapsibleState.None);
 
@@ -73,19 +77,24 @@ class TicketProvider
             }
 
             let status = "invalid";
+            let title;
 
             if (/^\d+$/.test(fileName)) {
                 try {
                     const fileUri = vscode.Uri.joinPath(ticketsFolder, fileName);
                     const fileData = await vscode.workspace.fs.readFile(fileUri);
+                    const parsedTicket = this.parseTicket(Buffer.from(fileData).toString("utf8"));
 
-                    status = this.parseStatus(Buffer.from(fileData).toString("utf8"));
+                    if (parsedTicket !== undefined) {
+                        status = parsedTicket.status;
+                        title = parsedTicket.title;
+                    }
                 } catch (error) {
                     status = "invalid";
                 }
             }
 
-            tickets.push(new TicketItem(fileName, status));
+            tickets.push(new TicketItem(fileName, status, title));
         }
 
         tickets.sort((ticketA, ticketB) => ticketA.fileName.localeCompare(
@@ -97,24 +106,41 @@ class TicketProvider
         return tickets;
     }
 
-    parseStatus(text)
+    parseTicket(text)
     {
         let status;
+        let foundSeparator = false;
 
         for (const line of text.split("\n")) {
             const trimmedLine = line.trim();
 
-            if (trimmedLine === "---") {
-                return status === "open" || status === "closed" ? status : "invalid";
+            if (!foundSeparator) {
+                if (trimmedLine === "---") {
+                    foundSeparator = true;
+                    continue;
+                }
+
+                const match = /^status\s*:\s*(.*?)\s*$/.exec(trimmedLine);
+                if (match !== null) {
+                    status = match[1];
+                }
+
+                continue;
             }
 
-            const match = /^status\s*:\s*(.*?)\s*$/.exec(trimmedLine);
-            if (match !== null) {
-                status = match[1];
+            if (trimmedLine !== "") {
+                if (status !== "open" && status !== "closed") {
+                    return undefined;
+                }
+
+                return {
+                    status,
+                    title: trimmedLine
+                };
             }
         }
 
-        return "invalid";
+        return undefined;
     }
 }
 
