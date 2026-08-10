@@ -75,6 +75,7 @@ Provide these initial commands:
 - Close Ticket
 - Reopen Ticket
 - Add Comment
+- Delete Ticket
 - Refresh Tickets
 
 The extension must:
@@ -84,6 +85,7 @@ The extension must:
 - Sort ticket IDs numerically.
 - Refresh when ticket files change.
 - Put appropriate commands in ticket context menus.
+- Ask for confirmation before deleting a ticket and use the system trash where available.
 - Give useful diagnostics for files in the Invalid group.
 - Parse ticket files directly so that the extension does not require a separately installed CLI program.
 - Prevent concurrent extension instances from overwriting a ticket when both instances select the same new ID. The VS Code workspace file API does not provide exclusive creation through its normal write operation.
