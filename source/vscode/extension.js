@@ -7,6 +7,52 @@ function getTicketsFolderPath()
     return configuredPath.trim() === "" ? "tickets" : configuredPath;
 }
 
+async function createTicket()
+{
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+
+    if (workspaceFolders === undefined || workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage("Open a workspace folder before creating a ticket.");
+        return;
+    }
+
+    const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, getTicketsFolderPath());
+
+    try {
+        await vscode.workspace.fs.createDirectory(ticketsFolder);
+
+        const entries = await vscode.workspace.fs.readDirectory(ticketsFolder);
+        let highestID = 0n;
+        let foundID = false;
+
+        for (const [fileName] of entries) {
+            if (/^\d+$/.test(fileName)) {
+                const id = BigInt(fileName);
+
+                if (!foundID || id > highestID) {
+                    highestID = id;
+                    foundID = true;
+                }
+            }
+        }
+
+        const newID = foundID ? highestID + 1n : 1n;
+        const ticketUri = vscode.Uri.joinPath(ticketsFolder, newID.toString());
+        const ticketTemplate = "status: open\n\n---\n\n";
+
+        await vscode.workspace.fs.writeFile(ticketUri, Buffer.from(ticketTemplate, "utf8"));
+
+        const document = await vscode.workspace.openTextDocument(ticketUri);
+        const editor = await vscode.window.showTextDocument(document);
+        const titlePosition = document.positionAt(document.getText().length);
+
+        editor.selection = new vscode.Selection(titlePosition, titlePosition);
+        editor.revealRange(new vscode.Range(titlePosition, titlePosition));
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to create ticket. ${error.message}`);
+    }
+}
+
 class TicketGroup extends vscode.TreeItem
 {
     constructor(label, status, collapsibleState)
@@ -175,8 +221,9 @@ function activate(context)
     const refreshCommand = vscode.commands.registerCommand("ticketfile.refresh", () => {
         ticketProvider.refresh();
     });
+    const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", createTicket);
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand);
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand);
 
     let watcherDisposables = [];
 

@@ -34,14 +34,24 @@
                 "command": "ticketfile.refresh",
                 "title": "Refresh Tickets",
                 "icon": "$(refresh)"
+            },
+            {
+                "command": "ticketfile.createTicket",
+                "title": "Create Ticket",
+                "icon": "$(add)"
             }
         ],
         "menus": {
             "view/title": [
                 {
+                    "command": "ticketfile.createTicket",
+                    "when": "view == ticketfile.tickets",
+                    "group": "navigation@1"
+                },
+                {
                     "command": "ticketfile.refresh",
                     "when": "view == ticketfile.tickets",
-                    "group": "navigation"
+                    "group": "navigation@2"
                 }
             ]
         },
@@ -51,7 +61,7 @@
                 "ticketfile.ticketsFolder": {
                     "type": "string",
                     "default": "tickets",
-                    "description": "Path to the tickets folder, relative to the first workspace folder."
+                    "description": "Path to the tickets folder, relative to the first folder in the workspace."
                 }
             }
         }
