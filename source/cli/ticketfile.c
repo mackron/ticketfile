@@ -223,6 +223,91 @@ static fs_result write_text_file(const char* pFilePath, const void* pFileData, s
     return fs_file_open_and_write(NULL, pFilePath, pFileData, fileDataSize);
 }
 
+static fs_result replace_file(const char* pSourcePath, const char* pDestinationPath)
+{
+    #if defined(FS_WIN32)
+    {
+        fs_result result;
+        fs_win32_path sourcePath;
+        fs_win32_path destinationPath;
+
+        result = fs_win32_path_init(&sourcePath, pSourcePath, FS_NULL_TERMINATED, NULL);
+        if (result != FS_SUCCESS) {
+            return result;
+        }
+
+        result = fs_win32_path_init(&destinationPath, pDestinationPath, FS_NULL_TERMINATED, NULL);
+        if (result != FS_SUCCESS) {
+            fs_win32_path_uninit(&sourcePath, NULL);
+            return result;
+        }
+
+        if (!MoveFileEx(sourcePath.path, destinationPath.path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+            result = fs_result_from_GetLastError();
+        }
+
+        fs_win32_path_uninit(&sourcePath, NULL);
+        fs_win32_path_uninit(&destinationPath, NULL);
+        return result;
+    }
+    #else
+    {
+        if (rename(pSourcePath, pDestinationPath) != 0) {
+            return fs_result_from_errno(errno);
+        }
+
+        return FS_SUCCESS;
+    }
+    #endif
+}
+
+static fs_result replace_text_file(const char* pFilePath, const void* pFileData, size_t fileDataSize)
+{
+    fs_result result;
+    fs_file* pFile;
+    char* pTemporaryPath;
+    size_t temporaryPathCapacity;
+    unsigned long suffix = 0;
+
+    temporaryPathCapacity = strlen(pFilePath) + 3 * sizeof(unsigned long) + 18;
+    pTemporaryPath = (char*)malloc(temporaryPathCapacity);
+    if (pTemporaryPath == NULL) {
+        return FS_OUT_OF_MEMORY;
+    }
+
+    for (;;) {
+        fs_snprintf(pTemporaryPath, temporaryPathCapacity, "%s.ticketfile-tmp-%lu", pFilePath, suffix);
+        result = fs_file_open(NULL, pTemporaryPath, FS_WRITE | FS_EXCLUSIVE, &pFile);
+        if (result != FS_ALREADY_EXISTS) {
+            break;
+        }
+        
+        if (suffix == ULONG_MAX) {
+            return FS_ALREADY_EXISTS;
+        }
+
+        suffix += 1;
+    }
+
+    if (result != FS_SUCCESS) {
+        return result;
+    }
+
+    result = fs_file_write(pFile, pFileData, fileDataSize, NULL);
+    fs_file_close(pFile);
+    if (result != FS_SUCCESS) {
+        fs_remove(NULL, pTemporaryPath, 0);
+        return result;
+    }
+
+    result = replace_file(pTemporaryPath, pFilePath);
+    if (result != FS_SUCCESS) {
+        fs_remove(NULL, pTemporaryPath, 0);
+    }
+
+    return result;
+}
+
 static int run_text_editor(const char* pFilePath)
 {
     const char* pEditor;
@@ -882,7 +967,7 @@ static int comment_on_ticket(const char* id)
         pWriteCursor[0] = '\n';
     }
 
-    result = write_text_file(pFilePath, pUpdatedData, updatedDataSize);
+    result = replace_text_file(pFilePath, pUpdatedData, updatedDataSize);
     if (result != FS_SUCCESS) {
         fs_file_writef(STDERR, "Failed to update %s. %s.\n", pFilePath, fs_result_description(result));
         return 1;
@@ -993,7 +1078,7 @@ static int update_ticket_status(const char* id, const char* pStatus, int addComm
         memcpy(pWriteCursor, ".\n", 2);
     }
 
-    result = write_text_file(pFilePath, pFinalData, finalDataSize);
+    result = replace_text_file(pFilePath, pFinalData, finalDataSize);
     if (result != FS_SUCCESS) {
         fs_file_writef(STDERR, "Failed to update %s. %s.\n", pFilePath, fs_result_description(result));
         return 1;
