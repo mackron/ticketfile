@@ -1,0 +1,39 @@
+{
+    "name": "ticketfile",
+    "displayName": "Ticket Explorer",
+    "description": "Manage plain-text tickets from Visual Studio Code.",
+    "version": "0.0.1",
+    "publisher": "mackron",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "main": "./extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "ticketfile",
+                    "title": "Ticket Explorer",
+                    "icon": "resources/ticket.svg"
+                }
+            ]
+        },
+        "views": {
+            "ticketfile": [
+                {
+                    "id": "ticketfile.tickets",
+                    "name": "Tickets"
+                }
+            ]
+        },
+        "viewsWelcome": [
+            {
+                "view": "ticketfile.tickets",
+                "contents": "Ticket listing will be added in the next step."
+            }
+        ]
+    }
+}
