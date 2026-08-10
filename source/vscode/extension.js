@@ -114,6 +114,22 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
     }
 }
 
+async function openTicket(ticketItem)
+{
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket to open.");
+        return;
+    }
+
+    try {
+        const document = await vscode.workspace.openTextDocument(ticketItem.resourceUri);
+
+        await vscode.window.showTextDocument(document);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to open ticket. ${error.message}`);
+    }
+}
+
 class TicketGroup extends vscode.TreeItem
 {
     constructor(label, status, collapsibleState)
@@ -142,9 +158,9 @@ class TicketItem extends vscode.TreeItem
         this.resourceUri = fileUri;
         this.tooltip = diagnostic === undefined ? label : `Invalid ticket: ${diagnostic}`;
         this.command = {
-            command: "vscode.open",
+            command: "ticketfile.openTicket",
             title: "Open Ticket",
-            arguments: [fileUri]
+            arguments: [this]
         };
     }
 }
@@ -301,6 +317,7 @@ function activate(context)
         ticketProvider.refresh();
     });
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", createTicket);
+    const openTicketCommand = vscode.commands.registerCommand("ticketfile.openTicket", openTicket);
     const closeTicketCommand = vscode.commands.registerCommand("ticketfile.closeTicket", (ticketItem) => {
         return updateTicketStatus(ticketItem, "closed", ticketProvider);
     });
@@ -308,7 +325,7 @@ function activate(context)
         return updateTicketStatus(ticketItem, "open", ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, closeTicketCommand, reopenTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, openTicketCommand, closeTicketCommand, reopenTicketCommand
     );
 
     let watcherDisposables = [];
