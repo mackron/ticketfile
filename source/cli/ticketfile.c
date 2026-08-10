@@ -11,7 +11,7 @@ static const char* g_pTicketsFolder = "tickets";
 static void print_usage(const char* executablePath)
 {
     fs_file_writef(STDOUT, "Usage:\n");
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [--status <open|closed>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
 }
 
@@ -125,6 +125,13 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 
     return pTicket->status.length > 0 && pTicket->shortDescription.length > 0;
 }
+
+static int ticket_text_range_equal(const char* pText, ticket_text_range range, const char* pValue)
+{
+    size_t valueLength = strlen(pValue);
+
+    return range.length == valueLength && memcmp(pText + range.offset, pValue, valueLength) == 0;
+}
 /* END parser */
 
 
@@ -148,7 +155,7 @@ static char* get_ticket_path(const char* pID, size_t idLength)
     return pFilePath;
 }
 
-static int list_tickets(void)
+static int list_tickets(const char* pStatus)
 {
     fs_iterator* pIterator;
 
@@ -193,6 +200,10 @@ static int list_tickets(void)
                 fs_file_writef(STDERR, "Failed to parse %s.\n", pFilePath);
                 continue;
             }
+        }
+
+        if (pStatus != NULL && !ticket_text_range_equal(pFileData, parsedTicket.status, pStatus)) {
+            continue;
         }
 
         fs_file_writef(STDOUT, "%.*s [%.*s] %.*s\n",
@@ -304,13 +315,35 @@ int main(int argc, char** argv)
     }
 
     if (strcmp(argv[argumentIndex], "list") == 0) {
-        if (argc != argumentIndex + 1) {
-            fs_file_writef(STDERR, "The list command does not take an argument.\n");
-            print_usage(argv[0]);
-            return 1;
+        const char* pStatus = NULL;
+
+        if (argc > argumentIndex + 1) {
+            if (strcmp(argv[argumentIndex + 1], "--status") != 0) {
+                fs_file_writef(STDERR, "Unknown list option: %s.\n", argv[argumentIndex + 1]);
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            if (argc <= argumentIndex + 2) {
+                fs_file_writef(STDERR, "The --status option requires a value.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            if (argc != argumentIndex + 3) {
+                fs_file_writef(STDERR, "The list command has too many arguments.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            pStatus = argv[argumentIndex + 2];
+            if (strcmp(pStatus, "open") != 0 && strcmp(pStatus, "closed") != 0) {
+                fs_file_writef(STDERR, "Invalid status: %s. Expected open or closed.\n", pStatus);
+                return 1;
+            }
         }
 
-        return list_tickets();
+        return list_tickets(pStatus);
     }
 
     if (strcmp(argv[argumentIndex], "show") == 0) {
