@@ -90,16 +90,19 @@ async function createTicket()
         }
 
         const ticketTemplate = "status: open\n\n---\n\n";
+        const ticketContents = Buffer.from(ticketTemplate, "utf8");
         let newID = foundID ? highestID + 1n : 1n;
         let ticketUri;
 
         for (;;) {
             ticketUri = vscode.Uri.joinPath(ticketsFolder, newID.toString());
 
+            /* Create the complete ticket in one exclusive edit so another extension instance cannot overwrite this ID. */
             const createEdit = new vscode.WorkspaceEdit();
             createEdit.createFile(ticketUri, {
                 overwrite: false,
-                ignoreIfExists: false
+                ignoreIfExists: false,
+                contents: ticketContents
             });
 
             if (await vscode.workspace.applyEdit(createEdit)) {
@@ -112,13 +115,6 @@ async function createTicket()
             } catch (error) {
                 throw new Error("VS Code could not create the ticket file.");
             }
-        }
-
-        try {
-            await vscode.workspace.fs.writeFile(ticketUri, Buffer.from(ticketTemplate, "utf8"));
-        } catch (error) {
-            await vscode.workspace.fs.delete(ticketUri, { recursive: false, useTrash: false });
-            throw error;
         }
 
         const document = await vscode.workspace.openTextDocument(ticketUri);
