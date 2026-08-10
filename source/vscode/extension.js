@@ -88,11 +88,37 @@ async function createTicket()
             }
         }
 
-        const newID = foundID ? highestID + 1n : 1n;
-        const ticketUri = vscode.Uri.joinPath(ticketsFolder, newID.toString());
         const ticketTemplate = "status: open\n\n---\n\n";
+        let newID = foundID ? highestID + 1n : 1n;
+        let ticketUri;
 
-        await vscode.workspace.fs.writeFile(ticketUri, Buffer.from(ticketTemplate, "utf8"));
+        for (;;) {
+            ticketUri = vscode.Uri.joinPath(ticketsFolder, newID.toString());
+
+            const createEdit = new vscode.WorkspaceEdit();
+            createEdit.createFile(ticketUri, {
+                overwrite: false,
+                ignoreIfExists: false
+            });
+
+            if (await vscode.workspace.applyEdit(createEdit)) {
+                break;
+            }
+
+            try {
+                await vscode.workspace.fs.stat(ticketUri);
+                newID += 1n;
+            } catch (error) {
+                throw new Error("VS Code could not create the ticket file.");
+            }
+        }
+
+        try {
+            await vscode.workspace.fs.writeFile(ticketUri, Buffer.from(ticketTemplate, "utf8"));
+        } catch (error) {
+            await vscode.workspace.fs.delete(ticketUri, { recursive: false, useTrash: false });
+            throw error;
+        }
 
         const document = await vscode.workspace.openTextDocument(ticketUri);
         const editor = await vscode.window.showTextDocument(document);
