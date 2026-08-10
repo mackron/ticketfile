@@ -13,7 +13,7 @@ static const char* g_pTicketsFolder = "tickets";
 static void print_usage(const char* executablePath)
 {
     fs_file_writef(STDOUT, "Usage:\n");
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [--status <open|closed>]\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [<tag:value> ...]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] edit <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id> [--no-comment]\n", executablePath);
@@ -32,8 +32,16 @@ typedef struct
 
 typedef struct
 {
+    text_range key;
+    text_range value;
+} ticket_metadata;
+
+typedef struct
+{
     text_range status;
     text_range shortDescription;
+    ticket_metadata* pMetadata;
+    size_t metadataCount;
 } ticket;
 
 static int is_horizontal_whitespace(char character)
@@ -60,11 +68,20 @@ static text_range trim_line(const char* pText, size_t lineOffset, size_t lineLen
     return range;
 }
 
-static int text_range_equal(const char* pText, text_range range, const char* pValue)
+static int text_range_equal(const char* pTextA, text_range rangeA, const char* pTextB, text_range rangeB)
 {
-    size_t valueLength = strlen(pValue);
+    return rangeA.length == rangeB.length &&
+        memcmp(pTextA + rangeA.offset, pTextB + rangeB.offset, rangeA.length) == 0;
+}
 
-    return range.length == valueLength && memcmp(pText + range.offset, pValue, valueLength) == 0;
+static int text_range_equal_string(const char* pText, text_range range, const char* pValue)
+{
+    text_range valueRange;
+
+    valueRange.offset = 0;
+    valueRange.length = strlen(pValue);
+
+    return text_range_equal(pText, range, pValue, valueRange);
 }
 
 static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
@@ -76,6 +93,8 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
     pTicket->status.length = 0;
     pTicket->shortDescription.offset = 0;
     pTicket->shortDescription.length = 0;
+    pTicket->pMetadata = NULL;
+    pTicket->metadataCount = 0;
 
     while (cursor < textLength) {
         text_range line;
@@ -104,9 +123,24 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
         if (colonOffset < line.length) {
             text_range key;
             text_range value;
+            ticket_metadata* pNewMetadata;
 
-            key = trim_line(pText, line.offset, colonOffset);
+            key   = trim_line(pText, line.offset,                   colonOffset);
             value = trim_line(pText, line.offset + colonOffset + 1, line.length - colonOffset - 1);
+
+            if (key.length == 0) {
+                continue;
+            }
+
+            pNewMetadata = (ticket_metadata*)realloc(pTicket->pMetadata, (pTicket->metadataCount + 1) * sizeof(*pNewMetadata));
+            if (pNewMetadata == NULL) {
+                return 0;
+            }
+
+            pTicket->pMetadata = pNewMetadata;
+            pTicket->pMetadata[pTicket->metadataCount].key = key;
+            pTicket->pMetadata[pTicket->metadataCount].value = value;
+            pTicket->metadataCount += 1;
 
             if (key.length == 6 && memcmp(pText + key.offset, "status", 6) == 0) {
                 pTicket->status = value;
@@ -141,7 +175,7 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
         return 0;
     }
 
-    return text_range_equal(pText, pTicket->status, "open") || text_range_equal(pText, pTicket->status, "closed");
+    return text_range_equal_string(pText, pTicket->status, "open") || text_range_equal_string(pText, pTicket->status, "closed");
 }
 
 static char* replace_text_range(const char* pText, size_t textLength, text_range range, const char* pReplacement, size_t replacementLength, size_t* pUpdatedTextLength)
@@ -658,7 +692,7 @@ static int create_ticket(const char* pMessage)
         return 1;
     }
 
-    if (!text_range_equal(pFileData, parsedTicket.status, "open")) {
+    if (!text_range_equal_string(pFileData, parsedTicket.status, "open")) {
         fs_file_writef(STDERR, "A new ticket must have an open status.\n");
         return 1;
     }
@@ -666,7 +700,54 @@ static int create_ticket(const char* pMessage)
     return create_ticket_file(pFileData, fileDataSize);
 }
 
-static int list_tickets(const char* pStatus)
+static int ticket_matches_filter(const char* pText, const ticket* pTicket, const char* pFilter)
+{
+    text_range filter;
+    text_range key;
+    text_range value;
+    size_t colonOffset = 0;
+    size_t i;
+
+    filter = trim_line(pFilter, 0, strlen(pFilter));
+    while (colonOffset < filter.length && pFilter[filter.offset + colonOffset] != ':') {
+        colonOffset += 1;
+    }
+
+    if (colonOffset == filter.length) {
+        return 1;
+    }
+
+    key   = trim_line(pFilter, filter.offset,                   colonOffset);
+    value = trim_line(pFilter, filter.offset + colonOffset + 1, filter.length - colonOffset - 1);
+    if (key.length == 0 || value.length == 0) {
+        return 1;
+    }
+
+    for (i = pTicket->metadataCount; i > 0; i -= 1) {
+        const ticket_metadata* pMetadata = &pTicket->pMetadata[i - 1];
+
+        if (text_range_equal(pText, pMetadata->key, pFilter, key)) {
+            return text_range_equal(pText, pMetadata->value, pFilter, value);
+        }
+    }
+
+    return 0;
+}
+
+static int ticket_matches_filters(const char* pText, const ticket* pTicket, int filterCount, char** ppFilters)
+{
+    int i;
+
+    for (i = 0; i < filterCount; i += 1) {
+        if (!ticket_matches_filter(pText, pTicket, ppFilters[i])) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static int list_tickets(int filterCount, char** ppFilters)
 {
     fs_iterator* pIterator;
 
@@ -708,7 +789,7 @@ static int list_tickets(const char* pStatus)
             }
         }
 
-        if (pStatus != NULL && !text_range_equal(pFileData, parsedTicket.status, pStatus)) {
+        if (!ticket_matches_filters(pFileData, &parsedTicket, filterCount, ppFilters)) {
             continue;
         }
 
@@ -861,7 +942,7 @@ static int has_comment_author(const char* pText, size_t textLength)
     while (separatorOffset + 3 <= line.length) {
         if (memcmp(pText + line.offset + separatorOffset, " - ", 3) == 0) {
             author = trim_line(pText, line.offset + separatorOffset + 3, line.length - separatorOffset - 3);
-            return author.length > 0 && !text_range_equal(pText, author, "<Insert Name>");
+            return author.length > 0 && !text_range_equal_string(pText, author, "<Insert Name>");
         }
 
         separatorOffset += 1;
@@ -1026,7 +1107,7 @@ static int update_ticket_status(const char* id, const char* pStatus, int addComm
         return 1;
     }
 
-    if (text_range_equal(pFileData, parsedTicket.status, pStatus)) {
+    if (text_range_equal_string(pFileData, parsedTicket.status, pStatus)) {
         return 0;   /* Status unchanged. */
     }
 
@@ -1288,35 +1369,7 @@ int main(int argc, char** argv)
     }
 
     if (strcmp(argv[argumentIndex], "list") == 0) {
-        const char* pStatus = NULL;
-
-        if (argc > argumentIndex + 1) {
-            if (strcmp(argv[argumentIndex + 1], "--status") != 0) {
-                fs_file_writef(STDERR, "Unknown list option: %s.\n", argv[argumentIndex + 1]);
-                print_usage(argv[0]);
-                return 1;
-            }
-
-            if (argc <= argumentIndex + 2) {
-                fs_file_writef(STDERR, "The --status option requires a value.\n");
-                print_usage(argv[0]);
-                return 1;
-            }
-
-            if (argc != argumentIndex + 3) {
-                fs_file_writef(STDERR, "The list command has too many arguments.\n");
-                print_usage(argv[0]);
-                return 1;
-            }
-
-            pStatus = argv[argumentIndex + 2];
-            if (strcmp(pStatus, "open") != 0 && strcmp(pStatus, "closed") != 0) {
-                fs_file_writef(STDERR, "Invalid status: %s. Expected open or closed.\n", pStatus);
-                return 1;
-            }
-        }
-
-        return list_tickets(pStatus);
+        return list_tickets(argc - argumentIndex - 1, argv + argumentIndex + 1);
     }
 
     if (strcmp(argv[argumentIndex], "show") == 0) {
