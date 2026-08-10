@@ -12,7 +12,7 @@ class TicketGroup extends vscode.TreeItem
 
 class TicketItem extends vscode.TreeItem
 {
-    constructor(fileName, status, title)
+    constructor(fileName, fileUri, status, title)
     {
         let label = fileName;
 
@@ -24,6 +24,12 @@ class TicketItem extends vscode.TreeItem
 
         this.fileName = fileName;
         this.status = status;
+        this.resourceUri = fileUri;
+        this.command = {
+            command: "vscode.open",
+            title: "Open Ticket",
+            arguments: [fileUri]
+        };
     }
 }
 
@@ -76,12 +82,12 @@ class TicketProvider
                 continue;
             }
 
+            const fileUri = vscode.Uri.joinPath(ticketsFolder, fileName);
             let status = "invalid";
             let title;
 
             if (/^\d+$/.test(fileName)) {
                 try {
-                    const fileUri = vscode.Uri.joinPath(ticketsFolder, fileName);
                     const fileData = await vscode.workspace.fs.readFile(fileUri);
                     const parsedTicket = this.parseTicket(Buffer.from(fileData).toString("utf8"));
 
@@ -94,7 +100,7 @@ class TicketProvider
                 }
             }
 
-            tickets.push(new TicketItem(fileName, status, title));
+            tickets.push(new TicketItem(fileName, fileUri, status, title));
         }
 
         tickets.sort((ticketA, ticketB) => ticketA.fileName.localeCompare(
