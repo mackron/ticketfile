@@ -1,7 +1,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { parseTicket } = require("./ticket_parser");
+const { parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 const casesPath = path.join(__dirname, "..", "..", "tests", "cases");
 const caseNames = fs.readdirSync(casesPath, { withFileTypes: true })
@@ -39,6 +39,14 @@ for (const caseName of caseNames) {
         console.log(`  ${error.message}`);
     }
 }
+
+const filterTicket = parseTicket("assignee: David Reid\npriority: high\nstatus: open\n\n---\n\nFilter test.\n");
+assert.deepStrictEqual(parseMetadataFilters("status:open \"assignee:David Reid\" invalid :missing missing:"), [
+    { key: "status", value: "open" },
+    { key: "assignee", value: "David Reid" }
+]);
+assert.strictEqual(ticketMatchesFilters(filterTicket, parseMetadataFilters("status:open priority:high")), true);
+assert.strictEqual(ticketMatchesFilters(filterTicket, parseMetadataFilters("status:closed")), false);
 
 console.log(`SUMMARY: ${passedCount}/${caseNames.length} passed`);
 

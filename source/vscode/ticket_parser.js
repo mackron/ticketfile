@@ -30,7 +30,7 @@ function findStatusRange(text)
 
 function parseTicket(text)
 {
-    let status;
+    const metadata = new Map();
     let foundSeparator = false;
     let title;
 
@@ -43,9 +43,13 @@ function parseTicket(text)
                 continue;
             }
 
-            const match = /^status\s*:\s*(.*?)\s*$/.exec(trimmedLine);
+            const match = /^([^:]+?)\s*:\s*(.*?)\s*$/.exec(trimmedLine);
             if (match !== null) {
-                status = match[1];
+                const key = match[1].trim();
+
+                if (key !== "") {
+                    metadata.set(key, match[2]);
+                }
             }
 
             continue;
@@ -61,6 +65,7 @@ function parseTicket(text)
         return { diagnostic: "Metadata separator is missing." };
     }
 
+    const status = metadata.get("status");
     if (status === undefined || status === "") {
         return { diagnostic: "Status metadata is missing." };
     }
@@ -73,10 +78,45 @@ function parseTicket(text)
         return { diagnostic: "Title is missing." };
     }
 
-    return { status, title };
+    return { status, title, metadata };
+}
+
+function parseMetadataFilters(text)
+{
+    const filters = [];
+    const tokens = text.match(/"[^"]*"|\S+/g) || [];
+
+    for (let token of tokens) {
+        if (token.startsWith("\"") || token.endsWith("\"")) {
+            if (!token.startsWith("\"") || !token.endsWith("\"") || token.length < 2) {
+                continue;
+            }
+            token = token.substring(1, token.length - 1);
+        }
+
+        const colonOffset = token.indexOf(":");
+        if (colonOffset === -1) {
+            continue;
+        }
+
+        const key = token.substring(0, colonOffset).trim();
+        const value = token.substring(colonOffset + 1).trim();
+        if (key !== "" && value !== "") {
+            filters.push({ key, value });
+        }
+    }
+
+    return filters;
+}
+
+function ticketMatchesFilters(ticket, filters)
+{
+    return filters.every((filter) => ticket.metadata.get(filter.key) === filter.value);
 }
 
 module.exports = {
     findStatusRange,
-    parseTicket
+    parseTicket,
+    parseMetadataFilters,
+    ticketMatchesFilters
 };

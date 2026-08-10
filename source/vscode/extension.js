@@ -1,6 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
-const { findStatusRange, parseTicket } = require("./ticket_parser");
+const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 function getTicketsFolderPath()
 {
@@ -300,11 +300,20 @@ class TicketProvider
     {
         this.changeTreeDataEmitter = new vscode.EventEmitter();
         this.onDidChangeTreeData = this.changeTreeDataEmitter.event;
+        this.filterText = "";
+        this.filters = [];
     }
 
     refresh()
     {
         this.changeTreeDataEmitter.fire(undefined);
+    }
+
+    setFilter(filterText)
+    {
+        this.filterText = filterText;
+        this.filters = parseMetadataFilters(filterText);
+        this.refresh();
     }
 
     getTreeItem(element)
@@ -365,6 +374,9 @@ class TicketProvider
                     const parsedTicket = parseTicket(Buffer.from(fileData).toString("utf8"));
 
                     if (parsedTicket.diagnostic === undefined) {
+                        if (!ticketMatchesFilters(parsedTicket, this.filters)) {
+                            continue;
+                        }
                         status = parsedTicket.status;
                         title = parsedTicket.title;
                     } else {
@@ -375,6 +387,10 @@ class TicketProvider
                 }
             } else {
                 diagnostic = "Filename must contain only a numeric ticket ID.";
+            }
+
+            if (this.filters.length > 0 && status === "invalid") {
+                continue;
             }
 
             tickets.push(new TicketItem(fileName, fileUri, status, title, diagnostic));
@@ -394,9 +410,35 @@ class TicketProvider
 function activate(context)
 {
     const ticketProvider = new TicketProvider();
-    const registration = vscode.window.registerTreeDataProvider("ticketfile.tickets", ticketProvider);
+    const treeView = vscode.window.createTreeView("ticketfile.tickets", { treeDataProvider: ticketProvider });
+
+    function updateFilterDisplay()
+    {
+        const hasFilter = ticketProvider.filters.length > 0;
+
+        treeView.description = hasFilter ? "Filtered" : undefined;
+        treeView.message = hasFilter ? `Active filter: ${ticketProvider.filterText}` : undefined;
+        vscode.commands.executeCommand("setContext", "ticketfile.hasFilter", hasFilter);
+    }
+
     const refreshCommand = vscode.commands.registerCommand("ticketfile.refresh", () => {
         ticketProvider.refresh();
+    });
+    const filterCommand = vscode.commands.registerCommand("ticketfile.filterTickets", async () => {
+        const filterText = await vscode.window.showInputBox({
+            title: "Filter Tickets",
+            prompt: "Example: status:open \"assignee:Clanker Bot\"",
+            value: ticketProvider.filterText
+        });
+
+        if (filterText !== undefined) {
+            ticketProvider.setFilter(filterText.trim());
+            updateFilterDisplay();
+        }
+    });
+    const clearFilterCommand = vscode.commands.registerCommand("ticketfile.clearFilter", () => {
+        ticketProvider.setFilter("");
+        updateFilterDisplay();
     });
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", createTicket);
     const openTicketCommand = vscode.commands.registerCommand("ticketfile.openTicket", openTicket);
@@ -411,8 +453,10 @@ function activate(context)
         return deleteTicket(ticketItem, ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, openTicketCommand, addCommentCommand, closeTicketCommand, reopenTicketCommand, deleteTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, closeTicketCommand, reopenTicketCommand, deleteTicketCommand
     );
+
+    updateFilterDisplay();
 
     let watcherDisposables = [];
 

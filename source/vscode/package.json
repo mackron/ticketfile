@@ -39,6 +39,17 @@
                 "icon": "$(refresh)"
             },
             {
+                "command": "ticketfile.filterTickets",
+                "title": "Filter Tickets",
+                "icon": "$(filter)"
+            },
+            {
+                "command": "ticketfile.clearFilter",
+                "title": "Clear Ticket Filter",
+                "icon": "$(clear-all)",
+                "enablement": "ticketfile.hasFilter"
+            },
+            {
                 "command": "ticketfile.createTicket",
                 "title": "Create Ticket",
                 "icon": "$(add)"
@@ -72,14 +83,24 @@
         "menus": {
             "view/title": [
                 {
-                    "command": "ticketfile.createTicket",
+                    "command": "ticketfile.filterTickets",
                     "when": "view == ticketfile.tickets",
                     "group": "navigation@1"
                 },
                 {
-                    "command": "ticketfile.refresh",
+                    "command": "ticketfile.clearFilter",
                     "when": "view == ticketfile.tickets",
                     "group": "navigation@2"
+                },
+                {
+                    "command": "ticketfile.createTicket",
+                    "when": "view == ticketfile.tickets",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "ticketfile.refresh",
+                    "when": "view == ticketfile.tickets",
+                    "group": "navigation@4"
                 }
             ],
             "view/item/context": [
