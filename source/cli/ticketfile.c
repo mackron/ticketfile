@@ -1,7 +1,3 @@
-#include <limits.h>
-#include <stdlib.h>
-#include <time.h>
-
 #include "../../external/fs/fs.c"
 
 static fs_file* STDIN  = NULL;
