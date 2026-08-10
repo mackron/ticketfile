@@ -1,7 +1,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
+const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 const casesPath = path.join(__dirname, "..", "..", "tests", "cases");
 const caseNames = fs.readdirSync(casesPath, { withFileTypes: true })
@@ -22,11 +22,11 @@ for (const caseName of caseNames) {
 
         if (expectation === "parse_success") {
             const expected = fs.readFileSync(path.join(casePath, "expected.txt"), "utf8");
+            const actual = result.title === undefined ? `${result.status || ""}\n` : `${result.status || ""}\n${result.title}\n`;
 
-            assert.strictEqual(result.diagnostic, undefined);
-            assert.strictEqual(`${result.status}\n${result.title}\n`, expected);
+            assert.strictEqual(actual, expected);
         } else if (expectation === "parse_error") {
-            assert.notStrictEqual(result.diagnostic, undefined);
+            assert.fail("The relaxed parser does not reject ticket text.");
         } else {
             assert.fail(`Unknown expectation: ${expectation}`);
         }
@@ -47,6 +47,9 @@ assert.deepStrictEqual(parseMetadataFilters("status:open \"assignee:David Reid\"
 ]);
 assert.strictEqual(ticketMatchesFilters(filterTicket, parseMetadataFilters("status:open priority:high")), true);
 assert.strictEqual(ticketMatchesFilters(filterTicket, parseMetadataFilters("status:closed")), false);
+assert.deepStrictEqual(findStatusRange("status: open\n\n---\n\nRange test.\n"), { offset: 8, length: 4 });
+assert.strictEqual(findStatusRange("Plain ticket.\n"), undefined);
+assert.strictEqual(parseTicket("assignee: David Reid\n\n---\n\nNo status.\n").hasMetadataSection, true);
 
 console.log(`SUMMARY: ${passedCount}/${caseNames.length} passed`);
 

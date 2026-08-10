@@ -1,0 +1,2 @@
+
+A ticket without a status.

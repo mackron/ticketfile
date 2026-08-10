@@ -120,3 +120,19 @@ So essentially everything after the "list" is a filter. Note that it should filt
 The VS Code plugin should have a filter text box at the top. If the filter is empty just return the full list.
 
 For any invalid filters, ignore it.
+
+---
+
+2026-08-11 - David Reid
+
+The point of this system is for humans to edit tickets naturally as plain text. People should be allowed to format their tickets however they want and not have it be considered invalid.
+
+Forcing a status is too restrictive and rigid and should therefore be optional. At it's most basic, a ticket should be able to just be a simple statement:
+
+    Fix login screen.
+
+Sometimes people just don't care about metadata and just want a place to track things so they're not forgotten. This should be supported.
+
+The parsing rules should be relaxed to allow basically anything. Metadata still needs to be recognized, and should still be placed at the top in its own section, one metadata item per line. The first non-metadata section should be considered the main content, subsequent sections should be considered comments. Sections are separated by "---".
+
+For the VS Code extension, instead of "Invalid" it should be "Uncategorized". There should be no need for an "Invalid" group because nothing should be considered as such in this, except for file system management stuff such as duplicated IDs, which shouldn't be possible since it's tied to the file system.

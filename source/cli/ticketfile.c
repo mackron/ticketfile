@@ -42,6 +42,8 @@ typedef struct
     text_range shortDescription;
     ticket_metadata* pMetadata;
     size_t metadataCount;
+    int hasMetadataSection;
+    int statusFound;
 } ticket;
 
 static int is_horizontal_whitespace(char character)
@@ -88,6 +90,7 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 {
     size_t cursor = 0;
     int foundSeparator = 0;
+    int validMetadataSection = 1;
 
     pTicket->status.offset = 0;
     pTicket->status.length = 0;
@@ -95,6 +98,8 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
     pTicket->shortDescription.length = 0;
     pTicket->pMetadata = NULL;
     pTicket->metadataCount = 0;
+    pTicket->hasMetadataSection = 0;
+    pTicket->statusFound = 0;
 
     while (cursor < textLength) {
         text_range line;
@@ -120,6 +125,10 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
             colonOffset += 1;
         }
 
+        if (line.length == 0) {
+            continue;
+        }
+
         if (colonOffset < line.length) {
             text_range key;
             text_range value;
@@ -129,6 +138,7 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
             value = trim_line(pText, line.offset + colonOffset + 1, line.length - colonOffset - 1);
 
             if (key.length == 0) {
+                validMetadataSection = 0;
                 continue;
             }
 
@@ -144,12 +154,21 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 
             if (key.length == 6 && memcmp(pText + key.offset, "status", 6) == 0) {
                 pTicket->status = value;
+                pTicket->statusFound = 1;
             }
+        } else {
+            validMetadataSection = 0;
         }
     }
 
-    if (!foundSeparator) {
-        return 0;
+    if (foundSeparator && validMetadataSection && pTicket->metadataCount > 0) {
+        pTicket->hasMetadataSection = 1;
+    } else {
+        cursor = 0;
+        pTicket->status.offset = 0;
+        pTicket->status.length = 0;
+        pTicket->metadataCount = 0;
+        pTicket->statusFound = 0;
     }
 
     while (cursor < textLength) {
@@ -165,17 +184,17 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
             cursor += 1;
         }
 
+        if (line.length == 3 && memcmp(pText + line.offset, "---", 3) == 0) {
+            break;
+        }
+
         if (line.length > 0) {
             pTicket->shortDescription = line;
             break;
         }
     }
 
-    if (pTicket->shortDescription.length == 0) {
-        return 0;
-    }
-
-    return text_range_equal_string(pText, pTicket->status, "open") || text_range_equal_string(pText, pTicket->status, "closed");
+    return 1;
 }
 
 static char* replace_text_range(const char* pText, size_t textLength, text_range range, const char* pReplacement, size_t replacementLength, size_t* pUpdatedTextLength)
@@ -657,13 +676,13 @@ static int create_ticket_file(const char* pFileData, size_t fileDataSize)
 
 static int create_ticket(const char* pMessage)
 {
-    static const char ticketPrefix[] = "status: open\n\n---\n\n";
+    static const char ticketTemplate[] = "status: open\n\n---\n\n";
     char* pFileData;
     size_t fileDataSize;
     ticket parsedTicket;
 
     if (pMessage != NULL) {
-        size_t prefixLength = sizeof(ticketPrefix) - 1;
+        size_t templateLength = sizeof(ticketTemplate) - 1;
         size_t messageLength = strlen(pMessage);
 
         if (messageLength == 0) {
@@ -671,29 +690,24 @@ static int create_ticket(const char* pMessage)
             return 1;
         }
 
-        fileDataSize = prefixLength + messageLength + 1;
+        fileDataSize = templateLength + messageLength + 1;
         pFileData = (char*)malloc(fileDataSize);
         if (pFileData == NULL) {
             fs_file_writef(STDERR, "Failed to allocate ticket data.\n");
             return 1;
         }
 
-        memcpy(pFileData, ticketPrefix, prefixLength);
-        memcpy(pFileData + prefixLength, pMessage, messageLength);
+        memcpy(pFileData, ticketTemplate, templateLength);
+        memcpy(pFileData + templateLength, pMessage, messageLength);
         pFileData[fileDataSize - 1] = '\n';
     } else {
-        if (!edit_text(ticketPrefix, sizeof(ticketPrefix) - 1, &pFileData, &fileDataSize)) {
+        if (!edit_text(ticketTemplate, sizeof(ticketTemplate) - 1, &pFileData, &fileDataSize)) {
             return 1;
         }
     }
 
     if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
-        fs_file_writef(STDERR, "A new ticket must have a status and short description.\n");
-        return 1;
-    }
-
-    if (!text_range_equal_string(pFileData, parsedTicket.status, "open")) {
-        fs_file_writef(STDERR, "A new ticket must have an open status.\n");
+        fs_file_writef(STDERR, "Failed to parse new ticket.\n");
         return 1;
     }
 
@@ -793,10 +807,16 @@ static int list_tickets(int filterCount, char** ppFilters)
             continue;
         }
 
-        fs_file_writef(STDOUT, "%.*s [%.*s] %.*s\n",
-            (int)idLength, pID,
-            (int)parsedTicket.status.length, pFileData + parsedTicket.status.offset,
-            (int)parsedTicket.shortDescription.length, pFileData + parsedTicket.shortDescription.offset);
+        if (parsedTicket.statusFound && parsedTicket.status.length > 0) {
+            fs_file_writef(STDOUT, "%.*s [%.*s] %.*s\n",
+                (int)idLength, pID,
+                (int)parsedTicket.status.length, pFileData + parsedTicket.status.offset,
+                (int)parsedTicket.shortDescription.length, pFileData + parsedTicket.shortDescription.offset);
+        } else {
+            fs_file_writef(STDOUT, "%.*s %.*s\n",
+                (int)idLength, pID,
+                (int)parsedTicket.shortDescription.length, pFileData + parsedTicket.shortDescription.offset);
+        }
     }
 
     return 0;
@@ -1072,10 +1092,12 @@ static int update_ticket_status(const char* id, const char* pStatus, int addComm
     size_t fileDataSize;
     ticket parsedTicket;
     char* pUpdatedData;
+    char* pStatusPrefix;
     char* pFinalData;
     char* pWriteCursor;
     size_t statusLength;
     size_t updatedDataSize;
+    size_t statusPrefixLength;
     size_t finalDataSize;
     const char* pSeparator;
     size_t separatorLength;
@@ -1107,12 +1129,33 @@ static int update_ticket_status(const char* id, const char* pStatus, int addComm
         return 1;
     }
 
-    if (text_range_equal_string(pFileData, parsedTicket.status, pStatus)) {
+    if (parsedTicket.statusFound && text_range_equal_string(pFileData, parsedTicket.status, pStatus)) {
         return 0;   /* Status unchanged. */
     }
 
     statusLength = strlen(pStatus);
-    pUpdatedData = replace_text_range(pFileData, fileDataSize, parsedTicket.status, pStatus, statusLength, &updatedDataSize);
+    if (parsedTicket.statusFound) {
+        pUpdatedData = replace_text_range(pFileData, fileDataSize, parsedTicket.status, pStatus, statusLength, &updatedDataSize);
+    } else {
+        const char* pStatusPrefixSuffix = parsedTicket.hasMetadataSection ? "\n" : "\n\n---\n\n";
+        size_t statusPrefixSuffixLength = strlen(pStatusPrefixSuffix);
+        text_range insertionRange;
+
+        statusPrefixLength = 8 + statusLength + statusPrefixSuffixLength;
+        pStatusPrefix = (char*)malloc(statusPrefixLength);
+        if (pStatusPrefix == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate status metadata.\n");
+            return 1;
+        }
+
+        memcpy(pStatusPrefix, "status: ", 8);
+        memcpy(pStatusPrefix + 8, pStatus, statusLength);
+        memcpy(pStatusPrefix + 8 + statusLength, pStatusPrefixSuffix, statusPrefixSuffixLength);
+
+        insertionRange.offset = 0;
+        insertionRange.length = 0;
+        pUpdatedData = replace_text_range(pFileData, fileDataSize, insertionRange, pStatusPrefix, statusPrefixLength, &updatedDataSize);
+    }
     if (pUpdatedData == NULL) {
         fs_file_writef(STDERR, "Failed to allocate updated ticket data.\n");
         return 1;
@@ -1252,15 +1295,20 @@ static int run_parser_test(const char* pCaseName)
         return 0;
     }
 
-    if (expectedSize != parsedTicket.status.length + parsedTicket.shortDescription.length + 2) {
+    if (expectedSize != parsedTicket.status.length + 1 +
+        (parsedTicket.shortDescription.length > 0 ? parsedTicket.shortDescription.length + 1 : 0)) {
         return 0;
     }
 
-    return memcmp(pExpected, pScript + parsedTicket.status.offset, parsedTicket.status.length) == 0 &&
-        pExpected[parsedTicket.status.length] == '\n' &&
-        memcmp(pExpected + parsedTicket.status.length + 1,
+    if (memcmp(pExpected, pScript + parsedTicket.status.offset, parsedTicket.status.length) != 0 ||
+        pExpected[parsedTicket.status.length] != '\n') {
+        return 0;
+    }
+
+    return parsedTicket.shortDescription.length == 0 ||
+        (memcmp(pExpected + parsedTicket.status.length + 1,
             pScript + parsedTicket.shortDescription.offset, parsedTicket.shortDescription.length) == 0 &&
-        pExpected[expectedSize - 1] == '\n';
+        pExpected[expectedSize - 1] == '\n');
 }
 
 static int run_tests(const char* pFilter)

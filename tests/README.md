@@ -15,7 +15,7 @@ Each test is in `tests/cases/<NNN_name>/`. Each folder contains
 `expectation.txt` supports these values:
 
 - `parse_success`: Parsing must succeed. `expected.txt` contains the parsed
-  status on line 1 and the parsed short description on line 2.
+  status on line 1 and, when present, the parsed short description on line 2.
 - `parse_error`: Parsing must fail.
 
 Tests run in folder-name order. The runner prints one result for each selected

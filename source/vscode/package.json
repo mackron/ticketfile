@@ -111,17 +111,17 @@
                 },
                 {
                     "command": "ticketfile.closeTicket",
-                    "when": "view == ticketfile.tickets && viewItem == openTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|uncategorized)Ticket$/",
                     "group": "inline@1"
                 },
                 {
                     "command": "ticketfile.reopenTicket",
-                    "when": "view == ticketfile.tickets && viewItem == closedTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(closed|uncategorized)Ticket$/",
                     "group": "inline@1"
                 },
                 {
                     "command": "ticketfile.addComment",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed)Ticket$/",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed|uncategorized)Ticket$/",
                     "group": "inline@2"
                 },
                 {
@@ -131,17 +131,17 @@
                 },
                 {
                     "command": "ticketfile.closeTicket",
-                    "when": "view == ticketfile.tickets && viewItem == openTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|uncategorized)Ticket$/",
                     "group": "1_modification@1"
                 },
                 {
                     "command": "ticketfile.reopenTicket",
-                    "when": "view == ticketfile.tickets && viewItem == closedTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(closed|uncategorized)Ticket$/",
                     "group": "1_modification@1"
                 },
                 {
                     "command": "ticketfile.addComment",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed)Ticket$/",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed|uncategorized)Ticket$/",
                     "group": "1_modification@2"
                 },
                 {

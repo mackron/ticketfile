@@ -147,22 +147,25 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
 
         const fileData = await vscode.workspace.fs.readFile(ticketItem.resourceUri);
         const text = Buffer.from(fileData).toString("utf8");
+        const parsedTicket = parseTicket(text);
         const statusRange = findStatusRange(text);
 
-        if (statusRange === undefined) {
-            vscode.window.showErrorMessage(`Ticket ${ticketItem.fileName} does not have valid status metadata.`);
-            return;
-        }
-
-        const currentStatus = text.substring(statusRange.offset, statusRange.offset + statusRange.length);
-        if (currentStatus === status) {
+        if (statusRange !== undefined && text.substring(statusRange.offset, statusRange.offset + statusRange.length) === status) {
             return;
         }
 
         const author = await getCommentAuthor();
-        const updatedStatusText = text.substring(0, statusRange.offset) +
-            status +
-            text.substring(statusRange.offset + statusRange.length);
+        let updatedStatusText;
+
+        if (statusRange !== undefined) {
+            updatedStatusText = text.substring(0, statusRange.offset) +
+                status +
+                text.substring(statusRange.offset + statusRange.length);
+        } else if (parsedTicket.hasMetadataSection) {
+            updatedStatusText = `status: ${status}\n${text}`;
+        } else {
+            updatedStatusText = `status: ${status}\n\n---\n\n${text}`;
+        }
         const separator = updatedStatusText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
         const historyEntry = `${separator}${getCurrentDate()} - ${author}\n\nChanged status to ${status}.\n`;
         const updatedText = updatedStatusText + historyEntry;
@@ -196,8 +199,8 @@ async function openTicket(ticketItem)
 
 async function commentOnTicket(ticketItem)
 {
-    if (!(ticketItem instanceof TicketItem) || ticketItem.status === "invalid") {
-        vscode.window.showErrorMessage("Select a valid ticket before adding a comment.");
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket before adding a comment.");
         return;
     }
 
@@ -276,16 +279,16 @@ class TicketItem extends vscode.TreeItem
         let label = fileName;
 
         if (/^\d+$/.test(fileName)) {
-            label = title === undefined ? `#${fileName}` : `#${fileName} ${title}`;
+            label = title === undefined ? `#${fileName}` : `#${fileName} - ${title}`;
         }
 
         super(label, vscode.TreeItemCollapsibleState.None);
 
         this.fileName = fileName;
         this.status = status;
-        this.contextValue = status === "open" || status === "closed" ? `${status}Ticket` : "invalidTicket";
+        this.contextValue = `${status}Ticket`;
         this.resourceUri = fileUri;
-        this.tooltip = diagnostic === undefined ? label : `Invalid ticket: ${diagnostic}`;
+        this.tooltip = diagnostic === undefined ? label : `${label}: ${diagnostic}`;
         this.command = {
             command: "ticketfile.openTicket",
             title: "Open Ticket",
@@ -327,7 +330,7 @@ class TicketProvider
             return [
                 new TicketGroup("Open", "open", vscode.TreeItemCollapsibleState.Expanded),
                 new TicketGroup("Closed", "closed", vscode.TreeItemCollapsibleState.Collapsed),
-                new TicketGroup("Invalid", "invalid", vscode.TreeItemCollapsibleState.Collapsed)
+                new TicketGroup("Uncategorized", "uncategorized", vscode.TreeItemCollapsibleState.Collapsed)
             ];
         }
 
@@ -364,7 +367,7 @@ class TicketProvider
             }
 
             const fileUri = vscode.Uri.joinPath(ticketsFolder, fileName);
-            let status = "invalid";
+            let status = "uncategorized";
             let title;
             let diagnostic;
 
@@ -373,15 +376,12 @@ class TicketProvider
                     const fileData = await vscode.workspace.fs.readFile(fileUri);
                     const parsedTicket = parseTicket(Buffer.from(fileData).toString("utf8"));
 
-                    if (parsedTicket.diagnostic === undefined) {
-                        if (!ticketMatchesFilters(parsedTicket, this.filters)) {
-                            continue;
-                        }
-                        status = parsedTicket.status;
-                        title = parsedTicket.title;
-                    } else {
-                        diagnostic = parsedTicket.diagnostic;
+                    if (!ticketMatchesFilters(parsedTicket, this.filters)) {
+                        continue;
                     }
+
+                    status = parsedTicket.status === "open" || parsedTicket.status === "closed" ? parsedTicket.status : "uncategorized";
+                    title = parsedTicket.title;
                 } catch (error) {
                     diagnostic = "File could not be read.";
                 }
@@ -389,7 +389,7 @@ class TicketProvider
                 diagnostic = "Filename must contain only a numeric ticket ID.";
             }
 
-            if (this.filters.length > 0 && status === "invalid") {
+            if (this.filters.length > 0 && diagnostic !== undefined) {
                 continue;
             }
 

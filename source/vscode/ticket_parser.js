@@ -1,5 +1,10 @@
 function findStatusRange(text)
 {
+    const ticket = parseTicket(text);
+    if (!ticket.hasMetadataSection) {
+        return undefined;
+    }
+
     let cursor = 0;
     let statusRange;
 
@@ -31,54 +36,52 @@ function findStatusRange(text)
 function parseTicket(text)
 {
     const metadata = new Map();
-    let foundSeparator = false;
+    const lines = text.split("\n");
+    const separatorIndex = lines.findIndex((line) => line.trim() === "---");
+    let hasMetadataSection = separatorIndex !== -1;
     let title;
 
-    for (const line of text.split("\n")) {
-        const trimmedLine = line.trim();
+    if (hasMetadataSection) {
+        let metadataCount = 0;
 
-        if (!foundSeparator) {
-            if (trimmedLine === "---") {
-                foundSeparator = true;
+        for (let i = 0; i < separatorIndex; i += 1) {
+            const trimmedLine = lines[i].trim();
+            if (trimmedLine === "") {
                 continue;
             }
 
             const match = /^([^:]+?)\s*:\s*(.*?)\s*$/.exec(trimmedLine);
-            if (match !== null) {
-                const key = match[1].trim();
-
-                if (key !== "") {
-                    metadata.set(key, match[2]);
-                }
+            if (match === null || match[1].trim() === "") {
+                hasMetadataSection = false;
+                metadata.clear();
+                break;
             }
 
-            continue;
+            metadata.set(match[1].trim(), match[2]);
+            metadataCount += 1;
         }
 
+        if (metadataCount === 0) {
+            hasMetadataSection = false;
+        }
+    }
+
+    const mainSectionStart = hasMetadataSection ? separatorIndex + 1 : 0;
+    for (let i = mainSectionStart; i < lines.length; i += 1) {
+        const line = lines[i];
+        const trimmedLine = line.trim();
+
+        if (trimmedLine === "---") {
+            break;
+        }
         if (trimmedLine !== "") {
             title = trimmedLine;
             break;
         }
     }
 
-    if (!foundSeparator) {
-        return { diagnostic: "Metadata separator is missing." };
-    }
-
     const status = metadata.get("status");
-    if (status === undefined || status === "") {
-        return { diagnostic: "Status metadata is missing." };
-    }
-
-    if (status !== "open" && status !== "closed") {
-        return { diagnostic: `Unknown status: ${status}.` };
-    }
-
-    if (title === undefined) {
-        return { diagnostic: "Title is missing." };
-    }
-
-    return { status, title, metadata };
+    return { status, title, metadata, hasMetadataSection };
 }
 
 function parseMetadataFilters(text)
