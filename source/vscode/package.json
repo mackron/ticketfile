@@ -28,6 +28,22 @@
                     "name": "Tickets"
                 }
             ]
+        },
+        "commands": [
+            {
+                "command": "ticketfile.refresh",
+                "title": "Refresh Tickets",
+                "icon": "$(refresh)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "ticketfile.refresh",
+                    "when": "view == ticketfile.tickets",
+                    "group": "navigation"
+                }
+            ]
         }
     }
 }

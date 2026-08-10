@@ -35,6 +35,17 @@ class TicketItem extends vscode.TreeItem
 
 class TicketProvider
 {
+    constructor()
+    {
+        this.changeTreeDataEmitter = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this.changeTreeDataEmitter.event;
+    }
+
+    refresh()
+    {
+        this.changeTreeDataEmitter.fire(undefined);
+    }
+
     getTreeItem(element)
     {
         return element;
@@ -154,8 +165,11 @@ function activate(context)
 {
     const ticketProvider = new TicketProvider();
     const registration = vscode.window.registerTreeDataProvider("ticketfile.tickets", ticketProvider);
+    const refreshCommand = vscode.commands.registerCommand("ticketfile.refresh", () => {
+        ticketProvider.refresh();
+    });
 
-    context.subscriptions.push(registration);
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand);
 }
 
 function deactivate()
