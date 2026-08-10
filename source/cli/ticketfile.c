@@ -16,8 +16,8 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [--status <open|closed>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] edit <id>\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id>\n", executablePath);
-    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id>\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id> [--no-comment]\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id> [--no-comment]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] comment <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s --test [case]\n", executablePath);
@@ -403,6 +403,40 @@ static int get_comment_author(char* pAuthor, size_t authorCapacity)
     return 0;
 }
 
+static char* create_comment_header(size_t* pHeaderLength, int* pAuthorFound)
+{
+    char author[256];
+    char date[11];
+    size_t authorLength;
+    char* pHeader;
+    time_t currentTime;
+    struct tm* pLocalTime;
+
+    *pAuthorFound = get_comment_author(author, sizeof(author));
+
+    currentTime = time(NULL);
+    pLocalTime = localtime(&currentTime);
+    if (pLocalTime == NULL || strftime(date, sizeof(date), "%Y-%m-%d", pLocalTime) == 0) {
+        fs_file_writef(STDERR, "Failed to determine current date.\n");
+        return NULL;
+    }
+
+    authorLength = strlen(author);
+    *pHeaderLength = 10 + 3 + authorLength;
+    pHeader = (char*)malloc(*pHeaderLength + 1);
+    if (pHeader == NULL) {
+        fs_file_writef(STDERR, "Failed to allocate comment header.\n");
+        return NULL;
+    }
+
+    memcpy(pHeader, date, 10);
+    memcpy(pHeader + 10, " - ", 3);
+    memcpy(pHeader + 13, author, authorLength);
+    pHeader[*pHeaderLength] = '\0';
+
+    return pHeader;
+}
+
 static int parse_ticket_id(const char* pID, size_t idLength, unsigned long* pValue)
 {
     unsigned long value = 0;
@@ -487,7 +521,7 @@ static int create_ticket_file(const char* pFileData, size_t fileDataSize)
 
         result = fs_file_write(pFile, pFileData, fileDataSize, NULL);
         fs_file_close(pFile);
-        
+
         if (result != FS_SUCCESS) {
             fs_file_writef(STDERR, "Failed to write %s. %s.\n", pFilePath, fs_result_description(result));
             fs_remove(NULL, pFilePath, 0);
@@ -751,13 +785,11 @@ static int comment_on_ticket(const char* id)
     char* pFileData;
     size_t fileDataSize;
     ticket parsedTicket;
-    char author[256];
-    char date[11];
-    time_t currentTime;
-    struct tm* pLocalTime;
+    char* pCommentHeader;
+    size_t commentHeaderLength;
+    int authorFound;
     const char* pSeparator;
     size_t separatorLength;
-    size_t authorLength;
     size_t initialDataSize;
     char* pInitialData;
     char* pWriteCursor;
@@ -789,19 +821,16 @@ static int comment_on_ticket(const char* id)
         return 1;
     }
 
-    if (!get_comment_author(author, sizeof(author))) {
-        fs_file_writef(STDERR, "No author name was found. Update <Insert Name> before saving.\n");
-    }
-
-    currentTime = time(NULL);
-    pLocalTime = localtime(&currentTime);
-    if (pLocalTime == NULL || strftime(date, sizeof(date), "%Y-%m-%d", pLocalTime) == 0) {
-        fs_file_writef(STDERR, "Failed to determine the current date.\n");
+    pCommentHeader = create_comment_header(&commentHeaderLength, &authorFound);
+    if (pCommentHeader == NULL) {
         return 1;
     }
 
-    authorLength = strlen(author);
-    initialDataSize = 10 + 3 + authorLength + 2;
+    if (!authorFound) {
+        fs_file_writef(STDERR, "No author name was found. Update <Insert Name> before saving.\n");
+    }
+
+    initialDataSize = commentHeaderLength + 2;
     pInitialData = (char*)malloc(initialDataSize);
     if (pInitialData == NULL) {
         fs_file_writef(STDERR, "Failed to allocate comment data.\n");
@@ -809,12 +838,8 @@ static int comment_on_ticket(const char* id)
     }
 
     pWriteCursor = pInitialData;
-    memcpy(pWriteCursor, date, 10);
-    pWriteCursor += 10;
-    memcpy(pWriteCursor, " - ", 3);
-    pWriteCursor += 3;
-    memcpy(pWriteCursor, author, authorLength);
-    pWriteCursor += authorLength;
+    memcpy(pWriteCursor, pCommentHeader, commentHeaderLength);
+    pWriteCursor += commentHeaderLength;
     memcpy(pWriteCursor, "\n\n", 2);
 
     if (!edit_text(pInitialData, initialDataSize, &pEditedData, &editedDataSize)) {
@@ -866,7 +891,7 @@ static int comment_on_ticket(const char* id)
     return 0;
 }
 
-static int update_ticket_status(const char* id, const char* pStatus)
+static int update_ticket_status(const char* id, const char* pStatus, int addComment)
 {
     fs_result result;
     char* pFilePath;
@@ -874,8 +899,18 @@ static int update_ticket_status(const char* id, const char* pStatus)
     size_t fileDataSize;
     ticket parsedTicket;
     char* pUpdatedData;
+    char* pFinalData;
+    char* pWriteCursor;
     size_t statusLength;
     size_t updatedDataSize;
+    size_t finalDataSize;
+    const char* pSeparator;
+    size_t separatorLength;
+    const char* pMessagePrefix = "Changed status to ";
+    size_t messagePrefixLength;
+    char* pCommentHeader;
+    size_t commentHeaderLength;
+    int authorFound;
 
     if (!is_ticket_id(id)) {
         fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
@@ -910,7 +945,51 @@ static int update_ticket_status(const char* id, const char* pStatus)
         return 1;
     }
 
-    result = write_text_file(pFilePath, pUpdatedData, updatedDataSize);
+    pFinalData = pUpdatedData;
+    finalDataSize = updatedDataSize;
+
+    if (addComment) {
+        pCommentHeader = create_comment_header(&commentHeaderLength, &authorFound);
+        if (pCommentHeader == NULL) {
+            return 1;
+        }
+
+        if (!authorFound) {
+            fs_file_writef(STDERR, "Warning: No author name was found for status comment.\n");
+        }
+
+        if (updatedDataSize > 0 && pUpdatedData[updatedDataSize - 1] == '\n') {
+            pSeparator = "\n---\n\n";
+        } else {
+            pSeparator = "\n\n---\n\n";
+        }
+
+        separatorLength = strlen(pSeparator);
+        messagePrefixLength = strlen(pMessagePrefix);
+        finalDataSize = updatedDataSize + separatorLength + commentHeaderLength + 2 + messagePrefixLength + statusLength + 2;
+        pFinalData = (char*)malloc(finalDataSize);
+        if (pFinalData == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate status comment data.\n");
+            return 1;
+        }
+
+        pWriteCursor = pFinalData;
+        memcpy(pWriteCursor, pUpdatedData, updatedDataSize);
+        pWriteCursor += updatedDataSize;
+        memcpy(pWriteCursor, pSeparator, separatorLength);
+        pWriteCursor += separatorLength;
+        memcpy(pWriteCursor, pCommentHeader, commentHeaderLength);
+        pWriteCursor += commentHeaderLength;
+        memcpy(pWriteCursor, "\n\n", 2);
+        pWriteCursor += 2;
+        memcpy(pWriteCursor, pMessagePrefix, messagePrefixLength);
+        pWriteCursor += messagePrefixLength;
+        memcpy(pWriteCursor, pStatus, statusLength);
+        pWriteCursor += statusLength;
+        memcpy(pWriteCursor, ".\n", 2);
+    }
+
+    result = write_text_file(pFilePath, pFinalData, finalDataSize);
     if (result != FS_SUCCESS) {
         fs_file_writef(STDERR, "Failed to update %s. %s.\n", pFilePath, fs_result_description(result));
         return 1;
@@ -1170,11 +1249,22 @@ int main(int argc, char** argv)
 
     if (strcmp(argv[argumentIndex], "close") == 0 || strcmp(argv[argumentIndex], "reopen") == 0) {
         const char* pStatus;
+        int addComment = 1;
 
-        if (argc != argumentIndex + 2) {
-            fs_file_writef(STDERR, "The %s command requires one ticket ID.\n", argv[argumentIndex]);
+        if (argc < argumentIndex + 2 || argc > argumentIndex + 3) {
+            fs_file_writef(STDERR, "The %s command requires one ticket ID and an optional --no-comment option.\n", argv[argumentIndex]);
             print_usage(argv[0]);
             return 1;
+        }
+
+        if (argc == argumentIndex + 3) {
+            if (strcmp(argv[argumentIndex + 2], "--no-comment") != 0) {
+                fs_file_writef(STDERR, "Unknown %s option: %s.\n", argv[argumentIndex], argv[argumentIndex + 2]);
+                print_usage(argv[0]);
+                return 1;
+            }
+            
+            addComment = 0;
         }
 
         if (strcmp(argv[argumentIndex], "close") == 0) {
@@ -1183,7 +1273,7 @@ int main(int argc, char** argv)
             pStatus = "open";
         }
 
-        return update_ticket_status(argv[argumentIndex + 1], pStatus);
+        return update_ticket_status(argv[argumentIndex + 1], pStatus, addComment);
     }
 
     if (strcmp(argv[argumentIndex], "new") == 0) {
