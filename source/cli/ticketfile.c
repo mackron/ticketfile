@@ -61,6 +61,13 @@ static text_range trim_line(const char* pText, size_t lineOffset, size_t lineLen
     return range;
 }
 
+static int text_range_equal(const char* pText, text_range range, const char* pValue)
+{
+    size_t valueLength = strlen(pValue);
+
+    return range.length == valueLength && memcmp(pText + range.offset, pValue, valueLength) == 0;
+}
+
 static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 {
     size_t cursor = 0;
@@ -131,14 +138,11 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
         }
     }
 
-    return pTicket->status.length > 0 && pTicket->shortDescription.length > 0;
-}
+    if (pTicket->shortDescription.length == 0) {
+        return 0;
+    }
 
-static int text_range_equal(const char* pText, text_range range, const char* pValue)
-{
-    size_t valueLength = strlen(pValue);
-
-    return range.length == valueLength && memcmp(pText + range.offset, pValue, valueLength) == 0;
+    return text_range_equal(pText, pTicket->status, "open") || text_range_equal(pText, pTicket->status, "closed");
 }
 
 static char* replace_text_range(const char* pText, size_t textLength, text_range range, const char* pReplacement, size_t replacementLength, size_t* pUpdatedTextLength)
