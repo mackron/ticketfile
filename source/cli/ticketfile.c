@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdlib.h>
 
 #include "../../external/fs/fs.c"
@@ -15,6 +16,7 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id>\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
 }
 
 
@@ -211,6 +213,251 @@ static fs_result read_text_file(const char* pFilePath, char** ppFileData, size_t
 static fs_result write_text_file(const char* pFilePath, const void* pFileData, size_t fileDataSize)
 {
     return fs_file_open_and_write(NULL, pFilePath, pFileData, fileDataSize);
+}
+
+static int run_text_editor(const char* pFilePath)
+{
+    const char* pEditor;
+    char* pCommand;
+    size_t editorLength;
+    size_t filePathLength;
+    size_t commandCapacity;
+    size_t commandLength;
+    size_t i;
+    int result;
+
+    pEditor = getenv("VISUAL");
+    if (pEditor == NULL || pEditor[0] == '\0') {
+        pEditor = getenv("EDITOR");
+    }
+
+    if (pEditor == NULL || pEditor[0] == '\0') {
+        #if defined(FS_WIN32)
+        {
+            pEditor = "notepad";
+        }
+        #else
+        {
+            pEditor = "vi";
+        }
+        #endif
+    }
+
+    editorLength   = strlen(pEditor);
+    filePathLength = strlen(pFilePath);
+
+    /* Allow four bytes per path character for POSIX escaping, plus a space, two quotes, a null terminator, and one spare byte. */
+    commandCapacity = editorLength + 2 + filePathLength * 4 + 3;
+    pCommand = (char*)malloc(commandCapacity);
+    if (pCommand == NULL) {
+        return 0;
+    }
+
+    memcpy(pCommand, pEditor, editorLength);
+    commandLength = editorLength;
+    pCommand[commandLength++] = ' ';
+
+    #if defined(FS_WIN32)
+    {
+        pCommand[commandLength++] = '"';
+        {
+            for (i = 0; i < filePathLength; i += 1) {
+                if (pFilePath[i] == '"') {
+                    pCommand[commandLength++] = '\\';
+                }
+
+                pCommand[commandLength++] = pFilePath[i];
+            }
+        }
+        pCommand[commandLength++] = '"';
+    }
+    #else
+    {
+        pCommand[commandLength++] = '\'';
+        {
+            for (i = 0; i < filePathLength; i += 1) {
+                if (pFilePath[i] == '\'') {
+                    memcpy(pCommand + commandLength, "'\\''", 4);
+                    commandLength += 4;
+                } else {
+                    pCommand[commandLength++] = pFilePath[i];
+                }
+            }
+        }
+        pCommand[commandLength++] = '\'';
+    }
+    #endif
+
+    pCommand[commandLength] = '\0';
+    result = system(pCommand);
+
+    return result == 0;
+}
+
+static int parse_ticket_id(const char* pID, size_t idLength, unsigned long* pValue)
+{
+    unsigned long value = 0;
+    size_t i;
+
+    if (idLength == 0) {
+        return 0;
+    }
+
+    for (i = 0; i < idLength; i += 1) {
+        unsigned int digit;
+
+        if (pID[i] < '0' || pID[i] > '9') {
+            return 0;
+        }
+
+        digit = (unsigned int)(pID[i] - '0');
+        if (value > (ULONG_MAX - digit) / 10) {
+            return 0;
+        }
+
+        value = value * 10 + digit;
+    }
+
+    *pValue = value;
+    return 1;
+}
+
+static int create_ticket_file(const char* pFileData, size_t fileDataSize)
+{
+    fs_iterator* pIterator;
+    unsigned long highestID = 0;
+    int foundID = 0;
+    unsigned long newID;
+
+    for (pIterator = fs_first(NULL, g_pTicketsFolder, 0); pIterator != NULL; pIterator = fs_next(pIterator)) {
+        unsigned long id;
+
+        if (parse_ticket_id(pIterator->pName, pIterator->nameLen, &id)) {
+            if (!foundID || id > highestID) {
+                highestID = id;
+                foundID = 1;
+            }
+        }
+    }
+
+    if (foundID && highestID == ULONG_MAX) {
+        fs_file_writef(STDERR, "No ticket ID is available.\n");
+        return 1;
+    }
+
+    newID = foundID ? highestID + 1 : 1;    /* Start at 1. We'll reserve ticket 0 as a special one. */
+    for (;;) {
+        fs_result result;
+        fs_file* pFile;
+        char id[3 * sizeof(unsigned long) + 1];
+        char* pFilePath;
+
+        fs_sprintf(id, "%lu", newID);
+
+        pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+        if (pFilePath == NULL) {
+            fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+            return 1;
+        }
+
+        result = fs_file_open(NULL, pFilePath, FS_WRITE | FS_EXCLUSIVE, &pFile);
+        if (result == FS_ALREADY_EXISTS) {
+            if (newID == ULONG_MAX) {
+                fs_file_writef(STDERR, "No ticket ID is available.\n");
+                return 1;
+            }
+
+            newID += 1;
+            continue;
+        }
+
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to create %s. %s.\n", pFilePath, fs_result_description(result));
+            return 1;
+        }
+
+        result = fs_file_write(pFile, pFileData, fileDataSize, NULL);
+        fs_file_close(pFile);
+        
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to write %s. %s.\n", pFilePath, fs_result_description(result));
+            fs_remove(NULL, pFilePath, 0);
+            return 1;
+        }
+
+        fs_file_writef(STDOUT, "Created ticket %lu.\n", newID);
+        return 0;
+    }
+}
+
+static int create_ticket(const char* pMessage)
+{
+    static const char ticketPrefix[] = "status: open\n\n---\n\n";
+    fs_result result;
+    char* pFileData;
+    size_t fileDataSize;
+    ticket parsedTicket;
+
+    if (pMessage != NULL) {
+        size_t prefixLength = sizeof(ticketPrefix) - 1;
+        size_t messageLength = strlen(pMessage);
+
+        if (messageLength == 0) {
+            fs_file_writef(STDERR, "A ticket message must not be empty.\n");
+            return 1;
+        }
+
+        fileDataSize = prefixLength + messageLength + 1;
+        pFileData = (char*)malloc(fileDataSize);
+        if (pFileData == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate ticket data.\n");
+            return 1;
+        }
+
+        memcpy(pFileData, ticketPrefix, prefixLength);
+        memcpy(pFileData + prefixLength, pMessage, messageLength);
+        pFileData[fileDataSize - 1] = '\n';
+    } else {
+        char temporaryPath[1024];
+
+        result = fs_mktmp("ticket", temporaryPath, sizeof(temporaryPath), FS_MKTMP_FILE);
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to create a temporary ticket. %s.\n", fs_result_description(result));
+            return 1;
+        }
+
+        result = write_text_file(temporaryPath, ticketPrefix, sizeof(ticketPrefix) - 1);
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to write temporary ticket. %s.\n", fs_result_description(result));
+            fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
+            return 1;
+        }
+
+        if (!run_text_editor(temporaryPath)) {
+            fs_file_writef(STDERR, "Text editor failed.\n");
+            fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
+            return 1;
+        }
+
+        result = read_text_file(temporaryPath, &pFileData, &fileDataSize);
+        fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to read temporary ticket. %s.\n", fs_result_description(result));
+            return 1;
+        }
+    }
+
+    if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+        fs_file_writef(STDERR, "A new ticket must have a status and short description.\n");
+        return 1;
+    }
+
+    if (!text_range_equal(pFileData, parsedTicket.status, "open")) {
+        fs_file_writef(STDERR, "A new ticket must have an open status.\n");
+        return 1;
+    }
+
+    return create_ticket_file(pFileData, fileDataSize);
 }
 
 static int list_tickets(const char* pStatus)
@@ -474,6 +721,34 @@ int main(int argc, char** argv)
         }
 
         return update_ticket_status(argv[argumentIndex + 1], pStatus);
+    }
+
+    if (strcmp(argv[argumentIndex], "new") == 0) {
+        const char* pMessage = NULL;
+
+        if (argc > argumentIndex + 1) {
+            if (strcmp(argv[argumentIndex + 1], "-m") != 0 && strcmp(argv[argumentIndex + 1], "--message") != 0) {
+                fs_file_writef(STDERR, "Unknown new option: %s.\n", argv[argumentIndex + 1]);
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            if (argc <= argumentIndex + 2) {
+                fs_file_writef(STDERR, "The %s option requires a message.\n", argv[argumentIndex + 1]);
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            if (argc != argumentIndex + 3) {
+                fs_file_writef(STDERR, "The new command has too many arguments.\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+
+            pMessage = argv[argumentIndex + 2];
+        }
+
+        return create_ticket(pMessage);
     }
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
