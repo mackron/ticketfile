@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "../../external/fs/fs.c"
 
@@ -18,6 +19,7 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] comment <id>\n", executablePath);
 }
 
 
@@ -295,6 +297,111 @@ static int run_text_editor(const char* pFilePath)
     return result == 0;
 }
 
+static int edit_text(const char* pText, size_t textLength, char** ppEditedText, size_t* pEditedTextLength)
+{
+    fs_result result;
+    char temporaryPath[1024];
+
+    result = fs_mktmp("ticket", temporaryPath, sizeof(temporaryPath), FS_MKTMP_FILE);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to create a temporary ticket. %s.\n", fs_result_description(result));
+        return 0;
+    }
+
+    result = write_text_file(temporaryPath, pText, textLength);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to write temporary ticket. %s.\n", fs_result_description(result));
+        fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
+        return 0;
+    }
+
+    if (!run_text_editor(temporaryPath)) {
+        fs_file_writef(STDERR, "Text editor failed.\n");
+        fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
+        return 0;
+    }
+
+    result = read_text_file(temporaryPath, ppEditedText, pEditedTextLength);
+    fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to read temporary ticket. %s.\n", fs_result_description(result));
+        return 0;
+    }
+
+    return 1;
+}
+
+static int read_command_line(const char* pCommand, char* pOutput, size_t outputCapacity)
+{
+    FILE* pPipe;
+    size_t outputLength;
+    int result;
+
+    if (outputCapacity == 0) {
+        return 0;
+    }
+
+    #if defined(FS_WIN32)
+        pPipe = _popen(pCommand, "r");
+    #else
+        pPipe = popen(pCommand, "r");
+    #endif
+    if (pPipe == NULL) {
+        return 0;
+    }
+
+    if (fgets(pOutput, (int)outputCapacity, pPipe) == NULL) {
+        pOutput[0] = '\0';
+    }
+
+    #if defined(FS_WIN32)
+        result = _pclose(pPipe);
+    #else
+        result = pclose(pPipe);
+    #endif
+
+    outputLength = strlen(pOutput);
+    while (outputLength > 0 && (pOutput[outputLength - 1] == '\n' || pOutput[outputLength - 1] == '\r')) {
+        outputLength -= 1;
+    }
+    pOutput[outputLength] = '\0';
+
+    return result == 0 && outputLength > 0;
+}
+
+static int copy_string(char* pDestination, size_t destinationCapacity, const char* pSource)
+{
+    size_t sourceLength = strlen(pSource);
+
+    if (sourceLength >= destinationCapacity) {
+        return 0;
+    }
+
+    memcpy(pDestination, pSource, sourceLength + 1);
+    return 1;
+}
+
+static int get_comment_author(char* pAuthor, size_t authorCapacity)
+{
+    const char* pEnvironmentAuthor = getenv("TICKET_AUTHOR");
+
+    if (pEnvironmentAuthor != NULL && pEnvironmentAuthor[0] != '\0' &&
+        copy_string(pAuthor, authorCapacity, pEnvironmentAuthor)) {
+        return 1;
+    }
+
+    if (read_command_line("git config --get user.name", pAuthor, authorCapacity)) {
+        return 1;
+    }
+
+    if (read_command_line("git config --get user.email", pAuthor, authorCapacity)) {
+        return 1;
+    }
+
+    copy_string(pAuthor, authorCapacity, "<Insert Name>");
+    return 0;
+}
+
 static int parse_ticket_id(const char* pID, size_t idLength, unsigned long* pValue)
 {
     unsigned long value = 0;
@@ -394,7 +501,6 @@ static int create_ticket_file(const char* pFileData, size_t fileDataSize)
 static int create_ticket(const char* pMessage)
 {
     static const char ticketPrefix[] = "status: open\n\n---\n\n";
-    fs_result result;
     char* pFileData;
     size_t fileDataSize;
     ticket parsedTicket;
@@ -419,31 +525,7 @@ static int create_ticket(const char* pMessage)
         memcpy(pFileData + prefixLength, pMessage, messageLength);
         pFileData[fileDataSize - 1] = '\n';
     } else {
-        char temporaryPath[1024];
-
-        result = fs_mktmp("ticket", temporaryPath, sizeof(temporaryPath), FS_MKTMP_FILE);
-        if (result != FS_SUCCESS) {
-            fs_file_writef(STDERR, "Failed to create a temporary ticket. %s.\n", fs_result_description(result));
-            return 1;
-        }
-
-        result = write_text_file(temporaryPath, ticketPrefix, sizeof(ticketPrefix) - 1);
-        if (result != FS_SUCCESS) {
-            fs_file_writef(STDERR, "Failed to write temporary ticket. %s.\n", fs_result_description(result));
-            fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
-            return 1;
-        }
-
-        if (!run_text_editor(temporaryPath)) {
-            fs_file_writef(STDERR, "Text editor failed.\n");
-            fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
-            return 1;
-        }
-
-        result = read_text_file(temporaryPath, &pFileData, &fileDataSize);
-        fs_remove(NULL, temporaryPath, FS_IGNORE_MOUNTS);
-        if (result != FS_SUCCESS) {
-            fs_file_writef(STDERR, "Failed to read temporary ticket. %s.\n", fs_result_description(result));
+        if (!edit_text(ticketPrefix, sizeof(ticketPrefix) - 1, &pFileData, &fileDataSize)) {
             return 1;
         }
     }
@@ -611,6 +693,173 @@ static int edit_ticket(const char* id)
     if (!run_text_editor(pFilePath)) {
         fs_file_writef(STDERR, "Text editor failed.\n");
         return 1;
+    }
+
+    return 0;
+}
+
+static int has_comment_body(const char* pText, size_t textLength)
+{
+    size_t cursor = 0;
+
+    while (cursor < textLength && pText[cursor] != '\n') {
+        cursor += 1;
+    }
+
+    while (cursor < textLength) {
+        char character = pText[cursor];
+
+        if (character != '\n' && character != '\r' && character != ' ' && character != '\t') {
+            return 1;
+        }
+
+        cursor += 1;
+    }
+
+    return 0;
+}
+
+static int has_comment_author(const char* pText, size_t textLength)
+{
+    text_range line;
+    text_range author;
+    size_t lineLength = 0;
+    size_t separatorOffset = 0;
+
+    while (lineLength < textLength && pText[lineLength] != '\n') {
+        lineLength += 1;
+    }
+
+    line = trim_line(pText, 0, lineLength);
+    while (separatorOffset + 3 <= line.length) {
+        if (memcmp(pText + line.offset + separatorOffset, " - ", 3) == 0) {
+            author = trim_line(pText, line.offset + separatorOffset + 3, line.length - separatorOffset - 3);
+            return author.length > 0 && !text_range_equal(pText, author, "<Insert Name>");
+        }
+
+        separatorOffset += 1;
+    }
+
+    return 0;
+}
+
+static int comment_on_ticket(const char* id)
+{
+    fs_result result;
+    char* pFilePath;
+    char* pFileData;
+    size_t fileDataSize;
+    ticket parsedTicket;
+    char author[256];
+    char date[11];
+    time_t currentTime;
+    struct tm* pLocalTime;
+    const char* pSeparator;
+    size_t separatorLength;
+    size_t authorLength;
+    size_t initialDataSize;
+    char* pInitialData;
+    char* pWriteCursor;
+    char* pEditedData;
+    size_t editedDataSize;
+    char* pUpdatedData;
+    size_t updatedDataSize;
+    size_t finalNewlineLength;
+
+    if (!is_ticket_id(id)) {
+        fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
+        return 1;
+    }
+
+    pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+    if (pFilePath == NULL) {
+        fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+        return 1;
+    }
+
+    result = read_text_file(pFilePath, &pFileData, &fileDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+        fs_file_writef(STDERR, "Failed to parse %s.\n", pFilePath);
+        return 1;
+    }
+
+    if (!get_comment_author(author, sizeof(author))) {
+        fs_file_writef(STDERR, "No author name was found. Update <Insert Name> before saving.\n");
+    }
+
+    currentTime = time(NULL);
+    pLocalTime = localtime(&currentTime);
+    if (pLocalTime == NULL || strftime(date, sizeof(date), "%Y-%m-%d", pLocalTime) == 0) {
+        fs_file_writef(STDERR, "Failed to determine the current date.\n");
+        return 1;
+    }
+
+    authorLength = strlen(author);
+    initialDataSize = 10 + 3 + authorLength + 2;
+    pInitialData = (char*)malloc(initialDataSize);
+    if (pInitialData == NULL) {
+        fs_file_writef(STDERR, "Failed to allocate comment data.\n");
+        return 1;
+    }
+
+    pWriteCursor = pInitialData;
+    memcpy(pWriteCursor, date, 10);
+    pWriteCursor += 10;
+    memcpy(pWriteCursor, " - ", 3);
+    pWriteCursor += 3;
+    memcpy(pWriteCursor, author, authorLength);
+    pWriteCursor += authorLength;
+    memcpy(pWriteCursor, "\n\n", 2);
+
+    if (!edit_text(pInitialData, initialDataSize, &pEditedData, &editedDataSize)) {
+        return 1;
+    }
+
+    if (!has_comment_body(pEditedData, editedDataSize)) {
+        fs_file_writef(STDERR, "A comment was not entered. Ticket was not changed.\n");
+        return 1;
+    }
+
+    if (fileDataSize > 0 && pFileData[fileDataSize - 1] == '\n') {
+        pSeparator = "\n---\n\n";
+    } else {
+        pSeparator = "\n\n---\n\n";
+    }
+
+    separatorLength = strlen(pSeparator);
+    finalNewlineLength = editedDataSize > 0 && pEditedData[editedDataSize - 1] == '\n' ? 0 : 1;
+    updatedDataSize = fileDataSize + separatorLength + editedDataSize + finalNewlineLength;
+    pUpdatedData = (char*)malloc(updatedDataSize);
+    if (pUpdatedData == NULL) {
+        fs_file_writef(STDERR, "Failed to allocate comment data.\n");
+        return 1;
+    }
+
+    pWriteCursor = pUpdatedData;
+    memcpy(pWriteCursor, pFileData, fileDataSize);
+    pWriteCursor += fileDataSize;
+    memcpy(pWriteCursor, pSeparator, separatorLength);
+    pWriteCursor += separatorLength;
+    memcpy(pWriteCursor, pEditedData, editedDataSize);
+    pWriteCursor += editedDataSize;
+
+    if (finalNewlineLength > 0) {
+        pWriteCursor[0] = '\n';
+    }
+
+    result = write_text_file(pFilePath, pUpdatedData, updatedDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to update %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!has_comment_author(pEditedData, editedDataSize)) {
+        fs_file_writef(STDERR, "Warning: Comment was saved without an author.\n");
     }
 
     return 0;
@@ -795,6 +1044,16 @@ int main(int argc, char** argv)
         }
 
         return create_ticket(pMessage);
+    }
+
+    if (strcmp(argv[argumentIndex], "comment") == 0) {
+        if (argc != argumentIndex + 2) {
+            fs_file_writef(STDERR, "The comment command requires one ticket ID.\n");
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        return comment_on_ticket(argv[argumentIndex + 1]);
     }
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
