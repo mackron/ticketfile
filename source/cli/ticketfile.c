@@ -13,6 +13,8 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "Usage:\n");
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [--status <open|closed>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id>\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id>\n", executablePath);
 }
 
 
@@ -21,12 +23,12 @@ typedef struct
 {
     size_t offset;
     size_t length;
-} ticket_text_range;
+} text_range;
 
 typedef struct
 {
-    ticket_text_range status;
-    ticket_text_range shortDescription;
+    text_range status;
+    text_range shortDescription;
 } ticket;
 
 static int is_horizontal_whitespace(char character)
@@ -34,9 +36,9 @@ static int is_horizontal_whitespace(char character)
     return character == ' ' || character == '\t' || character == '\r';
 }
 
-static ticket_text_range trim_line(const char* pText, size_t lineOffset, size_t lineLength)
+static text_range trim_line(const char* pText, size_t lineOffset, size_t lineLength)
 {
-    ticket_text_range range;
+    text_range range;
 
     while (lineLength > 0 && is_horizontal_whitespace(pText[lineOffset])) {
         lineOffset += 1;
@@ -64,7 +66,7 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
     pTicket->shortDescription.length = 0;
 
     while (cursor < textLength) {
-        ticket_text_range line;
+        text_range line;
         size_t lineOffset = cursor;
         size_t colonOffset;
 
@@ -88,8 +90,8 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
         }
 
         if (colonOffset < line.length) {
-            ticket_text_range key;
-            ticket_text_range value;
+            text_range key;
+            text_range value;
 
             key = trim_line(pText, line.offset, colonOffset);
             value = trim_line(pText, line.offset + colonOffset + 1, line.length - colonOffset - 1);
@@ -105,7 +107,7 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
     }
 
     while (cursor < textLength) {
-        ticket_text_range line;
+        text_range line;
         size_t lineOffset = cursor;
 
         while (cursor < textLength && pText[cursor] != '\n') {
@@ -126,11 +128,46 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
     return pTicket->status.length > 0 && pTicket->shortDescription.length > 0;
 }
 
-static int ticket_text_range_equal(const char* pText, ticket_text_range range, const char* pValue)
+static int text_range_equal(const char* pText, text_range range, const char* pValue)
 {
     size_t valueLength = strlen(pValue);
 
     return range.length == valueLength && memcmp(pText + range.offset, pValue, valueLength) == 0;
+}
+
+static char* replace_text_range(const char* pText, size_t textLength, text_range range, const char* pReplacement, size_t replacementLength, size_t* pUpdatedTextLength)
+{
+    char* pUpdatedText;
+    char* pWriteCursor;
+    size_t prefixLength;
+    size_t suffixOffset;
+    size_t suffixLength;
+
+    if (range.offset > textLength || range.length > textLength - range.offset) {
+        return NULL;
+    }
+
+    prefixLength = range.offset;
+    suffixOffset = range.offset + range.length;
+    suffixLength = textLength - suffixOffset;
+    *pUpdatedTextLength = prefixLength + replacementLength + suffixLength;
+
+    pUpdatedText = (char*)malloc(*pUpdatedTextLength);
+    if (pUpdatedText == NULL) {
+        return NULL;
+    }
+
+    pWriteCursor = pUpdatedText;
+
+    memcpy(pWriteCursor, pText, prefixLength);
+    pWriteCursor += prefixLength;
+
+    memcpy(pWriteCursor, pReplacement, replacementLength);
+    pWriteCursor += replacementLength;
+
+    memcpy(pWriteCursor, pText + suffixOffset, suffixLength);
+
+    return pUpdatedText;
 }
 /* END parser */
 
@@ -155,6 +192,27 @@ static char* get_ticket_path(const char* pID, size_t idLength)
     return pFilePath;
 }
 
+static fs_result read_text_file(const char* pFilePath, char** ppFileData, size_t* pFileDataSize)
+{
+    fs_result result;
+    fs_file* pFile;
+
+    result = fs_file_open(NULL, pFilePath, FS_READ, &pFile);
+    if (result != FS_SUCCESS) {
+        return result;
+    }
+
+    result = fs_file_read_to_end(pFile, FS_FORMAT_TEXT, (void**)ppFileData, pFileDataSize);
+    fs_file_close(pFile);
+
+    return result;
+}
+
+static fs_result write_text_file(const char* pFilePath, const void* pFileData, size_t fileDataSize)
+{
+    return fs_file_open_and_write(NULL, pFilePath, pFileData, fileDataSize);
+}
+
 static int list_tickets(const char* pStatus)
 {
     fs_iterator* pIterator;
@@ -173,7 +231,6 @@ static int list_tickets(const char* pStatus)
         /* Now we need to open the file and parse the short description. */
         {
             fs_result result;
-            fs_file* pFile;
             char* pFilePath;
 
             pFilePath = get_ticket_path(pIterator->pName, pIterator->nameLen);
@@ -182,15 +239,7 @@ static int list_tickets(const char* pStatus)
                 continue;
             }
 
-            result = fs_file_open(NULL, pFilePath, FS_READ, &pFile);
-            if (result != FS_SUCCESS) {
-                fs_file_writef(STDERR, "Failed to open %s. %s.\n", pFilePath, fs_result_description(result));
-                continue;
-            }
-
-            result = fs_file_read_to_end(pFile, FS_FORMAT_TEXT, (void**)&pFileData, &fileDataSize);
-            fs_file_close(pFile);
-
+            result = read_text_file(pFilePath, &pFileData, &fileDataSize);
             if (result != FS_SUCCESS) {
                 fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
                 continue;
@@ -202,7 +251,7 @@ static int list_tickets(const char* pStatus)
             }
         }
 
-        if (pStatus != NULL && !ticket_text_range_equal(pFileData, parsedTicket.status, pStatus)) {
+        if (pStatus != NULL && !text_range_equal(pFileData, parsedTicket.status, pStatus)) {
             continue;
         }
 
@@ -284,6 +333,59 @@ static int show_ticket(const char* id)
     return 0;
 }
 
+static int update_ticket_status(const char* id, const char* pStatus)
+{
+    fs_result result;
+    char* pFilePath;
+    char* pFileData;
+    size_t fileDataSize;
+    ticket parsedTicket;
+    char* pUpdatedData;
+    size_t statusLength;
+    size_t updatedDataSize;
+
+    if (!is_ticket_id(id)) {
+        fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
+        return 1;
+    }
+
+    pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+    if (pFilePath == NULL) {
+        fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+        return 1;
+    }
+
+    result = read_text_file(pFilePath, &pFileData, &fileDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+        fs_file_writef(STDERR, "Failed to parse %s.\n", pFilePath);
+        return 1;
+    }
+
+    if (text_range_equal(pFileData, parsedTicket.status, pStatus)) {
+        return 0;   /* Status unchanged. */
+    }
+
+    statusLength = strlen(pStatus);
+    pUpdatedData = replace_text_range(pFileData, fileDataSize, parsedTicket.status, pStatus, statusLength, &updatedDataSize);
+    if (pUpdatedData == NULL) {
+        fs_file_writef(STDERR, "Failed to allocate updated ticket data.\n");
+        return 1;
+    }
+
+    result = write_text_file(pFilePath, pUpdatedData, updatedDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to update %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     int argumentIndex = 1;
@@ -354,6 +456,24 @@ int main(int argc, char** argv)
         }
 
         return show_ticket(argv[argumentIndex + 1]);
+    }
+
+    if (strcmp(argv[argumentIndex], "close") == 0 || strcmp(argv[argumentIndex], "reopen") == 0) {
+        const char* pStatus;
+
+        if (argc != argumentIndex + 2) {
+            fs_file_writef(STDERR, "The %s command requires one ticket ID.\n", argv[argumentIndex]);
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        if (strcmp(argv[argumentIndex], "close") == 0) {
+            pStatus = "closed";
+        } else {
+            pStatus = "open";
+        }
+
+        return update_ticket_status(argv[argumentIndex + 1], pStatus);
     }
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
