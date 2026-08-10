@@ -170,6 +170,19 @@ function activate(context)
     });
 
     context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand);
+
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders !== undefined && workspaceFolders.length > 0) {
+        const ticketPattern = new vscode.RelativePattern(workspaceFolders[0], "tickets/*");
+        const ticketWatcher = vscode.workspace.createFileSystemWatcher(ticketPattern);
+
+        context.subscriptions.push(
+            ticketWatcher,
+            ticketWatcher.onDidCreate(() => ticketProvider.refresh()),
+            ticketWatcher.onDidChange(() => ticketProvider.refresh()),
+            ticketWatcher.onDidDelete(() => ticketProvider.refresh())
+        );
+    }
 }
 
 function deactivate()
