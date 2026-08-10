@@ -106,3 +106,17 @@ Suggested implementation order
 4. Implement the VS Code Ticket Explorer.
 5. Implement extension modification commands and file watching.
 6. Add packaging and installation documentation.
+
+---
+
+2026-08-11 - David Reid
+
+The ticket listing command needs to be a bit more robust. Instead of "list --status open", it should be a more generic filtering system which filters based the metadata (later on we can filter by searching for keywords in the description, but that's a task for later). Example:
+
+    ticket list status:open "assignee:David Reid"
+
+So essentially everything after the "list" is a filter. Note that it should filter on all metadata tags, not just the status, so the parser will need to handle all tags. For the CLI, just assume that each argument after "list" is one filter, so if a space is necessary, it needs to be wrapped in quotes.
+
+The VS Code plugin should have a filter text box at the top. If the filter is empty just return the full list.
+
+For any invalid filters, ignore it.
