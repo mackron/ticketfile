@@ -1,10 +1,62 @@
 const vscode = require("vscode");
+const { execFile } = require("child_process");
 
 function getTicketsFolderPath()
 {
     const configuredPath = vscode.workspace.getConfiguration("ticketfile").get("ticketsFolder", "tickets");
 
     return configuredPath.trim() === "" ? "tickets" : configuredPath;
+}
+
+function readGitConfig(key, workingDirectory)
+{
+    return new Promise((resolve) => {
+        execFile("git", ["config", "--get", key], { cwd: workingDirectory }, (error, stdout) => {
+            if (error !== null) {
+                resolve(undefined);
+                return;
+            }
+
+            const value = stdout.trim();
+
+            resolve(value === "" ? undefined : value);
+        });
+    });
+}
+
+async function getCommentAuthor()
+{
+    const environmentAuthor = process.env.TICKET_AUTHOR;
+    if (environmentAuthor !== undefined && environmentAuthor.trim() !== "") {
+        return environmentAuthor.trim();
+    }
+
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders !== undefined && workspaceFolders.length > 0) {
+        const workingDirectory = workspaceFolders[0].uri.fsPath;
+        const name = await readGitConfig("user.name", workingDirectory);
+
+        if (name !== undefined) {
+            return name;
+        }
+
+        const email = await readGitConfig("user.email", workingDirectory);
+        if (email !== undefined) {
+            return email;
+        }
+    }
+
+    return "<Insert Name>";
+}
+
+function getCurrentDate()
+{
+    const date = new Date();
+    const year = date.getFullYear().toString().padStart(4, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
 }
 
 async function createTicket()
@@ -125,6 +177,43 @@ async function openTicket(ticketItem)
         const document = await vscode.workspace.openTextDocument(ticketItem.resourceUri);
 
         await vscode.window.showTextDocument(document);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to open ticket. ${error.message}`);
+    }
+}
+
+async function commentOnTicket(ticketItem)
+{
+    if (!(ticketItem instanceof TicketItem) || ticketItem.status === "invalid") {
+        vscode.window.showErrorMessage("Select a valid ticket before adding a comment.");
+        return;
+    }
+
+    try {
+        const author = await getCommentAuthor();
+        const document = await vscode.workspace.openTextDocument(ticketItem.resourceUri);
+        const editor = await vscode.window.showTextDocument(document);
+        const ticketText = document.getText();
+        const separator = ticketText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
+        const commentTemplate = `${separator}${getCurrentDate()} - ${author}\n\n`;
+        const insertionPosition = document.positionAt(ticketText.length);
+        const inserted = await editor.edit((editBuilder) => {
+            editBuilder.insert(insertionPosition, commentTemplate);
+        });
+
+        if (!inserted) {
+            vscode.window.showErrorMessage("Failed to insert comment template.");
+            return;
+        }
+
+        const commentPosition = document.positionAt(ticketText.length + commentTemplate.length);
+
+        editor.selection = new vscode.Selection(commentPosition, commentPosition);
+        editor.revealRange(new vscode.Range(commentPosition, commentPosition));
+
+        if (author === "<Insert Name>") {
+            vscode.window.showWarningMessage("No author name was found. Update <Insert Name> before saving.");
+        }
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to open ticket. ${error.message}`);
     }
@@ -346,6 +435,7 @@ function activate(context)
     });
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", createTicket);
     const openTicketCommand = vscode.commands.registerCommand("ticketfile.openTicket", openTicket);
+    const addCommentCommand = vscode.commands.registerCommand("ticketfile.addComment", commentOnTicket);
     const closeTicketCommand = vscode.commands.registerCommand("ticketfile.closeTicket", (ticketItem) => {
         return updateTicketStatus(ticketItem, "closed", ticketProvider);
     });
@@ -356,7 +446,7 @@ function activate(context)
         return deleteTicket(ticketItem, ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, openTicketCommand, closeTicketCommand, reopenTicketCommand, deleteTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, openTicketCommand, addCommentCommand, closeTicketCommand, reopenTicketCommand, deleteTicketCommand
     );
 
     let watcherDisposables = [];

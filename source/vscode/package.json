@@ -46,6 +46,11 @@
                 "icon": "$(go-to-file)"
             },
             {
+                "command": "ticketfile.addComment",
+                "title": "Add Comment",
+                "icon": "$(comment-discussion)"
+            },
+            {
                 "command": "ticketfile.closeTicket",
                 "title": "Close Ticket",
                 "icon": "$(issue-closed)"
@@ -91,6 +96,11 @@
                     "group": "inline@1"
                 },
                 {
+                    "command": "ticketfile.addComment",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed)Ticket$/",
+                    "group": "inline@2"
+                },
+                {
                     "command": "ticketfile.openTicket",
                     "when": "view == ticketfile.tickets && viewItem =~ /Ticket$/",
                     "group": "navigation@1"
@@ -104,6 +114,11 @@
                     "command": "ticketfile.reopenTicket",
                     "when": "view == ticketfile.tickets && viewItem == closedTicket",
                     "group": "1_modification@1"
+                },
+                {
+                    "command": "ticketfile.addComment",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed)Ticket$/",
+                    "group": "1_modification@2"
                 },
                 {
                     "command": "ticketfile.deleteTicket",
