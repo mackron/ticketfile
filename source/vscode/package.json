@@ -10,6 +10,9 @@
     "categories": [
         "Other"
     ],
+    "scripts": {
+        "test": "node ticket_parser.test.js"
+    },
     "main": "./extension.js",
     "contributes": {
         "viewsContainers": {

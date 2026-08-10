@@ -26,3 +26,8 @@ Run tests through CMake and CTest:
     cmake -S . -B build -DBUILD_TESTING=ON
     cmake --build build
     ctest --test-dir build --output-on-failure
+
+Run the same parser cases against the VS Code extension parser:
+
+    cd source/vscode
+    npm test

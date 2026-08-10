@@ -1,5 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
+const { findStatusRange, parseTicket } = require("./ticket_parser");
 
 function getTicketsFolderPath()
 {
@@ -129,36 +130,6 @@ async function createTicket()
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to create ticket. ${error.message}`);
     }
-}
-
-function findStatusRange(text)
-{
-    let cursor = 0;
-    let statusRange;
-
-    while (cursor < text.length) {
-        let lineEnd = text.indexOf("\n", cursor);
-        if (lineEnd === -1) {
-            lineEnd = text.length;
-        }
-
-        const line = text.substring(cursor, lineEnd);
-        if (line.trim() === "---") {
-            return statusRange;
-        }
-
-        const match = /^([ \t\r]*status[ \t]*:[ \t]*)(.*?)([ \t\r]*)$/.exec(line);
-        if (match !== null) {
-            statusRange = {
-                offset: cursor + match[1].length,
-                length: match[2].length
-            };
-        }
-
-        cursor = lineEnd + 1;
-    }
-
-    return undefined;
 }
 
 async function updateTicketStatus(ticketItem, status, ticketProvider)
@@ -395,7 +366,7 @@ class TicketProvider
             if (/^\d+$/.test(fileName)) {
                 try {
                     const fileData = await vscode.workspace.fs.readFile(fileUri);
-                    const parsedTicket = this.parseTicket(Buffer.from(fileData).toString("utf8"));
+                    const parsedTicket = parseTicket(Buffer.from(fileData).toString("utf8"));
 
                     if (parsedTicket.diagnostic === undefined) {
                         status = parsedTicket.status;
@@ -422,53 +393,6 @@ class TicketProvider
         return tickets;
     }
 
-    parseTicket(text)
-    {
-        let status;
-        let foundSeparator = false;
-        let title;
-
-        for (const line of text.split("\n")) {
-            const trimmedLine = line.trim();
-
-            if (!foundSeparator) {
-                if (trimmedLine === "---") {
-                    foundSeparator = true;
-                    continue;
-                }
-
-                const match = /^status\s*:\s*(.*?)\s*$/.exec(trimmedLine);
-                if (match !== null) {
-                    status = match[1];
-                }
-
-                continue;
-            }
-
-            if (trimmedLine !== "") {
-                title = trimmedLine;
-                break;
-            }
-        }
-
-        if (!foundSeparator) {
-            return { diagnostic: "Metadata separator is missing." };
-        }
-
-        if (status === undefined || status === "") {
-            return { diagnostic: "Status metadata is missing." };
-        }
-
-        if (status !== "open" && status !== "closed") {
-            return { diagnostic: `Unknown status: ${status}.` };
-        }
-
-        if (title === undefined) {
-            return { diagnostic: "Title is missing." };
-        }
-
-        return { status, title };
-    }
 }
 
 function activate(context)
