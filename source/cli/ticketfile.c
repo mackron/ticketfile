@@ -14,6 +14,7 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "Usage:\n");
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] list [--status <open|closed>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] show <id>\n", executablePath);
+    fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] edit <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] close <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
@@ -580,6 +581,41 @@ static int show_ticket(const char* id)
     return 0;
 }
 
+static int edit_ticket(const char* id)
+{
+    fs_result result;
+    fs_file* pFile;
+    char* pFilePath;
+
+    if (!is_ticket_id(id)) {
+        fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
+        return 1;
+    }
+
+    pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+    if (pFilePath == NULL) {
+        fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+        return 1;
+    }
+
+    /* This is just checking the file exists and is readable. Is there a cleaner way of doing this? */
+    {
+        result = fs_file_open(NULL, pFilePath, FS_READ, &pFile);
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to open %s. %s.\n", pFilePath, fs_result_description(result));
+            return 1;
+        }
+        fs_file_close(pFile);
+    }
+
+    if (!run_text_editor(pFilePath)) {
+        fs_file_writef(STDERR, "Text editor failed.\n");
+        return 1;
+    }
+
+    return 0;
+}
+
 static int update_ticket_status(const char* id, const char* pStatus)
 {
     fs_result result;
@@ -703,6 +739,16 @@ int main(int argc, char** argv)
         }
 
         return show_ticket(argv[argumentIndex + 1]);
+    }
+
+    if (strcmp(argv[argumentIndex], "edit") == 0) {
+        if (argc != argumentIndex + 2) {
+            fs_file_writef(STDERR, "The edit command requires one ticket ID.\n");
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        return edit_ticket(argv[argumentIndex + 1]);
     }
 
     if (strcmp(argv[argumentIndex], "close") == 0 || strcmp(argv[argumentIndex], "reopen") == 0) {
