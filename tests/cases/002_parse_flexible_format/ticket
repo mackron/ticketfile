@@ -1,0 +1,10 @@
+ignored: value
+  status  :  closed  
+
+  ---  
+
+  A closed ticket.  
+
+---
+
+Comment without a date or author.

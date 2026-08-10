@@ -18,6 +18,7 @@ endif()
 add_library(ticketfile_common INTERFACE)
 target_compile_options(ticketfile_common INTERFACE ${COMPILE_OPTIONS})
 
+
 # ticketfile
 add_executable(ticketfile
     source/cli/ticketfile.c
@@ -25,6 +26,15 @@ add_executable(ticketfile
 target_link_libraries(ticketfile PRIVATE ticketfile_common)
 set_target_properties(ticketfile PROPERTIES OUTPUT_NAME "ticket")
 
+
+# Tests
+include(CTest)
+if(BUILD_TESTING)
+    add_test(NAME ticketfile_test COMMAND ticketfile --test)
+    set_tests_properties(ticketfile_test PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+endif()
 
 
 # Install

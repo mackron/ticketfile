@@ -20,6 +20,7 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id>\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] comment <id>\n", executablePath);
+    fs_file_writef(STDOUT, "  %s --test [case]\n", executablePath);
 }
 
 
@@ -918,6 +919,173 @@ static int update_ticket_status(const char* id, const char* pStatus)
     return 0;
 }
 
+
+/* BEG testing */
+static char* get_test_path(const char* pCaseName, const char* pFileName)
+{
+    int casePathLength;
+    int pathLength;
+    char* pCasePath;
+    char* pPath;
+
+    casePathLength = fs_path_append(NULL, 0, "tests/cases", FS_NULL_TERMINATED, pCaseName, FS_NULL_TERMINATED);
+    if (casePathLength < 0) {
+        return NULL;
+    }
+
+    pCasePath = (char*)malloc((size_t)casePathLength + 1);
+    if (pCasePath == NULL) {
+        return NULL;
+    }
+    fs_path_append(pCasePath, (size_t)casePathLength + 1, "tests/cases", FS_NULL_TERMINATED, pCaseName, FS_NULL_TERMINATED);
+
+    pathLength = fs_path_append(NULL, 0, pCasePath, FS_NULL_TERMINATED, pFileName, FS_NULL_TERMINATED);
+    pPath = (char*)malloc((size_t)pathLength + 1);
+    if (pPath == NULL) {
+        return NULL;
+    }
+    fs_path_append(pPath, (size_t)pathLength + 1, pCasePath, FS_NULL_TERMINATED, pFileName, FS_NULL_TERMINATED);
+    return pPath;
+}
+
+static int test_case_name_compare(const void* pA, const void* pB)
+{
+    const char* const* ppA = (const char* const*)pA;
+    const char* const* ppB = (const char* const*)pB;
+    return strcmp(*ppA, *ppB);
+}
+
+static int test_case_matches(const char* pCaseName, const char* pFilter)
+{
+    if (pFilter == NULL) {
+        return 1;
+    }
+    if (strlen(pFilter) == 3) {
+        return strncmp(pCaseName, pFilter, 3) == 0 && pCaseName[3] == '_';
+    }
+    return strcmp(pCaseName, pFilter) == 0;
+}
+
+static int run_parser_test(const char* pCaseName)
+{
+    char* pScriptPath = get_test_path(pCaseName, "ticket");
+    char* pExpectationPath = get_test_path(pCaseName, "expectation.txt");
+    char* pExpectedPath = get_test_path(pCaseName, "expected.txt");
+    char* pScript;
+    char* pExpectation;
+    char* pExpected;
+    size_t scriptSize;
+    size_t expectationSize;
+    size_t expectedSize;
+    ticket parsedTicket;
+    int parseResult;
+
+    if (pScriptPath == NULL || pExpectationPath == NULL ||
+        read_text_file(pScriptPath, &pScript, &scriptSize) != FS_SUCCESS ||
+        read_text_file(pExpectationPath, &pExpectation, &expectationSize) != FS_SUCCESS) {
+        return 0;
+    }
+
+    while (expectationSize > 0 && (pExpectation[expectationSize - 1] == '\n' || pExpectation[expectationSize - 1] == '\r')) {
+        expectationSize -= 1;
+    }
+    pExpectation[expectationSize] = '\0';
+    parseResult = parse_ticket(pScript, scriptSize, &parsedTicket);
+
+    if (strcmp(pExpectation, "parse_error") == 0) {
+        return !parseResult;
+    }
+    if (strcmp(pExpectation, "parse_success") != 0 || !parseResult || pExpectedPath == NULL ||
+        read_text_file(pExpectedPath, &pExpected, &expectedSize) != FS_SUCCESS) {
+        return 0;
+    }
+
+    if (expectedSize != parsedTicket.status.length + parsedTicket.shortDescription.length + 2) {
+        return 0;
+    }
+
+    return memcmp(pExpected, pScript + parsedTicket.status.offset, parsedTicket.status.length) == 0 &&
+        pExpected[parsedTicket.status.length] == '\n' &&
+        memcmp(pExpected + parsedTicket.status.length + 1,
+            pScript + parsedTicket.shortDescription.offset, parsedTicket.shortDescription.length) == 0 &&
+        pExpected[expectedSize - 1] == '\n';
+}
+
+static int run_tests(const char* pFilter)
+{
+    fs_iterator* pIterator;
+    char** ppCaseNames = NULL;
+    size_t caseCount = 0;
+    size_t selectedCount = 0;
+    size_t passedCount = 0;
+    size_t i;
+
+    if (pFilter != NULL && strlen(pFilter) != 3) {
+        int numeric = 1;
+
+        for (i = 0; pFilter[i] != '\0'; i += 1) {
+            if (pFilter[i] < '0' || pFilter[i] > '9') {
+                numeric = 0;
+                break;
+            }
+        }
+        if (numeric) {
+            fs_file_writef(STDERR, "Numeric test filters must contain exactly three digits.\n");
+            return 1;
+        }
+    }
+
+    for (pIterator = fs_first(NULL, "tests/cases", 0); pIterator != NULL; pIterator = fs_next(pIterator)) {
+        char** ppNewCaseNames;
+
+        if (!pIterator->info.directory || pIterator->nameLen < 5 || pIterator->pName[3] != '_') {
+            continue;
+        }
+
+        ppNewCaseNames = (char**)realloc(ppCaseNames, (caseCount + 1) * sizeof(*ppCaseNames));
+        if (ppNewCaseNames == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate test data.\n");
+            return 1;
+        }
+        ppCaseNames = ppNewCaseNames;
+        ppCaseNames[caseCount] = (char*)malloc(pIterator->nameLen + 1);
+        if (ppCaseNames[caseCount] == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate test data.\n");
+            return 1;
+        }
+        memcpy(ppCaseNames[caseCount], pIterator->pName, pIterator->nameLen);
+        ppCaseNames[caseCount][pIterator->nameLen] = '\0';
+        caseCount += 1;
+    }
+
+    qsort(ppCaseNames, caseCount, sizeof(*ppCaseNames), test_case_name_compare);
+    for (i = 0; i < caseCount; i += 1) {
+        int passed;
+
+        if (!test_case_matches(ppCaseNames[i], pFilter)) {
+            continue;
+        }
+
+        selectedCount += 1;
+        passed = run_parser_test(ppCaseNames[i]);
+        if (passed) {
+            passedCount += 1;
+        }
+        fs_file_writef(STDOUT, "%s: %s\n", passed ? "PASS" : "FAIL", ppCaseNames[i]);
+    }
+
+    if (caseCount == 0) {
+        fs_file_writef(STDERR, "No test cases exist.\n");
+    } else if (selectedCount == 0) {
+        fs_file_writef(STDERR, "Requested test case does not exist.\n");
+    }
+    fs_file_writef(STDOUT, "SUMMARY: %d/%d passed\n", (int)passedCount, (int)selectedCount);
+
+    return selectedCount > 0 && passedCount == selectedCount ? 0 : 1;
+}
+/* END testing */
+
+
 int main(int argc, char** argv)
 {
     int argumentIndex = 1;
@@ -1054,6 +1222,15 @@ int main(int argc, char** argv)
         }
 
         return comment_on_ticket(argv[argumentIndex + 1]);
+    }
+
+    if (strcmp(argv[argumentIndex], "--test") == 0) {
+        if (argc > argumentIndex + 2) {
+            fs_file_writef(STDERR, "The --test option takes no more than one case.\n");
+            return 1;
+        }
+
+        return run_tests(argc == argumentIndex + 2 ? argv[argumentIndex + 1] : NULL);
     }
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
