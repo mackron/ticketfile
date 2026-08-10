@@ -20,7 +20,6 @@ static void print_usage(const char* executablePath)
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] reopen <id> [--no-comment]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] new [-m <message> | --message <message>]\n", executablePath);
     fs_file_writef(STDOUT, "  %s [-t <path> | --tickets-folder <path>] comment <id>\n", executablePath);
-    fs_file_writef(STDOUT, "  %s --test [case]\n", executablePath);
 }
 
 
@@ -281,7 +280,7 @@ static fs_result replace_text_file(const char* pFilePath, const void* pFileData,
         if (result != FS_ALREADY_EXISTS) {
             break;
         }
-        
+
         if (suffix == ULONG_MAX) {
             return FS_ALREADY_EXISTS;
         }
