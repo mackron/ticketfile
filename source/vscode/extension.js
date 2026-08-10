@@ -126,7 +126,7 @@ class TicketGroup extends vscode.TreeItem
 
 class TicketItem extends vscode.TreeItem
 {
-    constructor(fileName, fileUri, status, title)
+    constructor(fileName, fileUri, status, title, diagnostic)
     {
         let label = fileName;
 
@@ -140,6 +140,7 @@ class TicketItem extends vscode.TreeItem
         this.status = status;
         this.contextValue = status === "open" || status === "closed" ? `${status}Ticket` : "invalidTicket";
         this.resourceUri = fileUri;
+        this.tooltip = diagnostic === undefined ? label : `Invalid ticket: ${diagnostic}`;
         this.command = {
             command: "vscode.open",
             title: "Open Ticket",
@@ -211,22 +212,27 @@ class TicketProvider
             const fileUri = vscode.Uri.joinPath(ticketsFolder, fileName);
             let status = "invalid";
             let title;
+            let diagnostic;
 
             if (/^\d+$/.test(fileName)) {
                 try {
                     const fileData = await vscode.workspace.fs.readFile(fileUri);
                     const parsedTicket = this.parseTicket(Buffer.from(fileData).toString("utf8"));
 
-                    if (parsedTicket !== undefined) {
+                    if (parsedTicket.diagnostic === undefined) {
                         status = parsedTicket.status;
                         title = parsedTicket.title;
+                    } else {
+                        diagnostic = parsedTicket.diagnostic;
                     }
                 } catch (error) {
-                    status = "invalid";
+                    diagnostic = "File could not be read.";
                 }
+            } else {
+                diagnostic = "Filename must contain only a numeric ticket ID.";
             }
 
-            tickets.push(new TicketItem(fileName, fileUri, status, title));
+            tickets.push(new TicketItem(fileName, fileUri, status, title, diagnostic));
         }
 
         tickets.sort((ticketA, ticketB) => ticketA.fileName.localeCompare(
@@ -242,6 +248,7 @@ class TicketProvider
     {
         let status;
         let foundSeparator = false;
+        let title;
 
         for (const line of text.split("\n")) {
             const trimmedLine = line.trim();
@@ -261,18 +268,28 @@ class TicketProvider
             }
 
             if (trimmedLine !== "") {
-                if (status !== "open" && status !== "closed") {
-                    return undefined;
-                }
-
-                return {
-                    status,
-                    title: trimmedLine
-                };
+                title = trimmedLine;
+                break;
             }
         }
 
-        return undefined;
+        if (!foundSeparator) {
+            return { diagnostic: "Metadata separator is missing." };
+        }
+
+        if (status === undefined || status === "") {
+            return { diagnostic: "Status metadata is missing." };
+        }
+
+        if (status !== "open" && status !== "closed") {
+            return { diagnostic: `Unknown status: ${status}.` };
+        }
+
+        if (title === undefined) {
+            return { diagnostic: "Title is missing." };
+        }
+
+        return { status, title };
     }
 }
 
