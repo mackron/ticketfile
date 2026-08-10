@@ -1,0 +1,105 @@
+status: open
+
+---
+
+Implement a CLI and VS Code extension for plain-text ticket management.
+
+Create a simple ticket-management system that operates on plain-text files.
+It must preserve a workflow in which users can open and edit ticket files with
+normal text editors. Git can track ticket history and resolve ID conflicts.
+
+Ticket format
+
+- Store tickets in a configurable directory. Use "tickets" by default.
+- Use a non-negative numeric filename as the ticket ID.
+- Do not require an "id" metadata field. The filename is authoritative.
+- Put metadata before the first "---" separator.
+- Require a status with a value of "open" or "closed".
+- Treat the first non-empty line after the first separator as the title.
+- Treat the remaining ticket text as its description and update history.
+- Permit additional metadata fields and preserve fields that tools do not know.
+- Be forgiving when parsing text written by users.
+- Do not reject a ticket only because an update has an unexpected author or date format.
+- Show files that cannot be interpreted as tickets in an Invalid group in the VS Code extension.
+
+Comments and status changes
+
+- Encourage each update to contain a date and an author name.
+- Permit updates that do not follow the recommended heading format.
+- Let the CLI and VS Code extension add the date and author automatically.
+- If possible, get the author name and email address from the local Git configuration.
+- Permit configuration to override the Git author information.
+- When a tool changes status, append an update such as:
+
+    ---
+
+    2026-07-10 - David Reid
+
+    Changed status to closed.
+
+CLI
+
+Implement a small CLI with these initial commands:
+
+    ticket list
+    ticket list --status open
+    ticket list --status closed
+    ticket show <id>
+    ticket new
+    ticket edit <id>
+    ticket close <id>
+    ticket reopen <id>
+    ticket comment <id>
+
+The CLI must:
+
+- Treat the current working directory as the workspace root.
+- Use a command-line option or configuration to select the ticket directory.
+- Sort ticket IDs numerically.
+- Use the highest existing numeric ID plus one for a new ticket.
+- Let Git expose and resolve a conflict if concurrent work creates the same ID.
+- Use VISUAL or EDITOR when a text editor is necessary.
+- Report malformed tickets without preventing access to valid tickets where practical.
+- Use safe file replacement when it changes existing tickets.
+- Return a nonzero exit status when an operation fails.
+
+VS Code extension
+
+Implement a VS Code extension that uses the normal text editor for ticket
+contents. Add a Ticket Explorer with Open, Closed, and Invalid groups.
+
+Provide these initial commands:
+
+- Create Ticket
+- Open Ticket
+- Close Ticket
+- Reopen Ticket
+- Add Comment
+- Refresh Tickets
+
+The extension must:
+
+- Treat the VS Code workspace folder as the workspace root.
+- Provide a setting for the ticket directory and default it to "tickets".
+- Sort ticket IDs numerically.
+- Refresh when ticket files change.
+- Put appropriate commands in ticket context menus.
+- Give useful diagnostics for files in the Invalid group.
+- Parse ticket files directly so that the extension does not require a separately installed CLI program.
+
+Shared behavior and tests
+
+- Write a short specification for the ticket format and its permissive parsing rules.
+- Use shared fixture files and expected results to test CLI and extension behavior.
+- Include valid, unusual but accepted, and invalid ticket examples.
+- Make status and filename validation strict. Keep comment parsing permissive.
+- Ensure that both tools preserve user text and unknown metadata when changing a ticket.
+
+Suggested implementation order
+
+1. Define the format and add parser fixtures.
+2. Implement CLI list and show commands.
+3. Implement the remaining CLI commands.
+4. Implement the VS Code Ticket Explorer.
+5. Implement extension modification commands and file watching.
+6. Add packaging and installation documentation.

@@ -1,0 +1,30 @@
+status: open
+
+---
+
+An example describing the ticket system (this line is the short description).
+
+The very top line before the "---" is just metadata about the ticket. The "status" item is mandatory, everything else will be parsed, but ignored. Everything below that contains information about the ticket. The first line after "---" is the short description of the ticket. Everything after that is the detailed description.
+
+The name of the file should contain only the ticket number and nothing else. This acts as the unique ID of the ticket.
+
+The status can be one of the following:
+
+    open
+    closed
+
+Updates and comments from users can be appended to the end, separated by "---"
+
+This ticket should be considered the format specification.
+
+---
+
+2026-07-11 - David Reid
+
+This is a comment that can be added to the ticket for later updates.
+
+---
+
+2026-07-11 - David Reid
+
+This is another comment that is added at a later date again.
