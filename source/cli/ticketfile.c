@@ -674,23 +674,42 @@ static int create_ticket_file(const char* pFileData, size_t fileDataSize)
     }
 }
 
-static int create_ticket(const char* pMessage)
+static int create_ticket(const char* pMessage, const char* pDescriptionPath)
 {
     static const char ticketTemplate[] = "status: open\n\n---\n\n";
     char* pFileData;
     size_t fileDataSize;
     ticket parsedTicket;
 
-    if (pMessage != NULL) {
+    if (pMessage != NULL || pDescriptionPath != NULL) {
         size_t templateLength = sizeof(ticketTemplate) - 1;
-        size_t messageLength = strlen(pMessage);
+        char* pDescriptionData;
+        const char* pDescription;
+        size_t descriptionLength;
+        size_t finalNewlineLength;
 
-        if (messageLength == 0) {
+        if (pDescriptionPath != NULL) {
+            fs_result result = read_text_file(pDescriptionPath, &pDescriptionData, &descriptionLength);
+
+            if (result != FS_SUCCESS) {
+                fs_file_writef(STDERR, "Failed to read %s. %s.\n", pDescriptionPath, fs_result_description(result));
+                return 1;
+            }
+
+            pDescription = pDescriptionData;
+            finalNewlineLength = 0;
+        } else {
+            pDescription = pMessage;
+            descriptionLength = strlen(pMessage);
+            finalNewlineLength = 1;
+        }
+
+        if (pMessage != NULL && descriptionLength == 0) {
             fs_file_writef(STDERR, "A ticket message must not be empty.\n");
             return 1;
         }
 
-        fileDataSize = templateLength + messageLength + 1;
+        fileDataSize = templateLength + descriptionLength + finalNewlineLength;
         pFileData = (char*)malloc(fileDataSize);
         if (pFileData == NULL) {
             fs_file_writef(STDERR, "Failed to allocate ticket data.\n");
@@ -698,8 +717,12 @@ static int create_ticket(const char* pMessage)
         }
 
         memcpy(pFileData, ticketTemplate, templateLength);
-        memcpy(pFileData + templateLength, pMessage, messageLength);
-        pFileData[fileDataSize - 1] = '\n';
+        if (descriptionLength > 0) {
+            memcpy(pFileData + templateLength, pDescription, descriptionLength);
+        }
+        if (finalNewlineLength > 0) {
+            pFileData[fileDataSize - 1] = '\n';
+        }
     } else {
         if (!edit_text(ticketTemplate, sizeof(ticketTemplate) - 1, &pFileData, &fileDataSize)) {
             return 1;
@@ -761,31 +784,78 @@ static int ticket_matches_filters(const char* pText, const ticket* pTicket, int 
     return 1;
 }
 
+static int ticket_file_name_compare(const void* pA, const void* pB)
+{
+    const char* pNameA = *(const char* const*)pA;
+    const char* pNameB = *(const char* const*)pB;
+    unsigned long idA;
+    unsigned long idB;
+    int numericA = parse_ticket_id(pNameA, strlen(pNameA), &idA);
+    int numericB = parse_ticket_id(pNameB, strlen(pNameB), &idB);
+
+    if (numericA && numericB) {
+        if (idA < idB) {
+            return -1;
+        }
+        if (idA > idB) {
+            return 1;
+        }
+    } else if (numericA) {
+        return -1;
+    } else if (numericB) {
+        return 1;
+    }
+
+    return strcmp(pNameA, pNameB);
+}
+
 static int list_tickets(int filterCount, char** ppFilters)
 {
     fs_iterator* pIterator;
+    char** ppFileNames = NULL;
+    size_t fileNameCount = 0;
+    size_t i;
 
     for (pIterator = fs_first(NULL, g_pTicketsFolder, 0); pIterator != NULL; pIterator = fs_next(pIterator)) {
-        const char* pID = "[Unknown ID]";
-        size_t idLength = strlen(pID);
-        char* pFileData;
-        size_t fileDataSize;
-        ticket parsedTicket;
+        char** ppNewFileNames;
 
         if (strstr(pIterator->pName, ".ticketfile-tmp-") != NULL) {
             continue;
         }
 
-        /* For now, just use the file name for the ID, but maybe later we can parse the file name to just take the first part which we assume is the ID. */
-        pID = pIterator->pName;
-        idLength = pIterator->nameLen;
+        ppNewFileNames = (char**)realloc(ppFileNames, (fileNameCount + 1) * sizeof(*ppFileNames));
+        if (ppNewFileNames == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate ticket list.\n");
+            return 1;
+        }
+        ppFileNames = ppNewFileNames;
+
+        ppFileNames[fileNameCount] = (char*)malloc(pIterator->nameLen + 1);
+        if (ppFileNames[fileNameCount] == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate ticket list.\n");
+            return 1;
+        }
+        memcpy(ppFileNames[fileNameCount], pIterator->pName, pIterator->nameLen + 1);
+        fileNameCount += 1;
+    }
+
+    if (fileNameCount > 1) {
+        qsort(ppFileNames, fileNameCount, sizeof(*ppFileNames), ticket_file_name_compare);
+    }
+
+    for (i = 0; i < fileNameCount; i += 1) {
+        const char* pID = ppFileNames[i];
+        size_t idLength = strlen(pID);
+        char* pFileData;
+        size_t fileDataSize;
+        ticket parsedTicket;
 
         /* Now we need to open the file and parse the short description. */
         {
             fs_result result;
             char* pFilePath;
 
-            pFilePath = get_ticket_path(pIterator->pName, pIterator->nameLen);
+            pFilePath = get_ticket_path(pID, idLength);
             if (pFilePath == NULL) {
                 fs_file_writef(STDERR, "Failed to construct ticket path.\n");
                 continue;
@@ -1471,16 +1541,17 @@ int main(int argc, char** argv)
 
     if (strcmp(argv[argumentIndex], "new") == 0) {
         const char* pMessage = NULL;
+        const char* pDescriptionPath = NULL;
 
         if (argc > argumentIndex + 1) {
-            if (strcmp(argv[argumentIndex + 1], "-m") != 0 && strcmp(argv[argumentIndex + 1], "--message") != 0) {
+            if (strcmp(argv[argumentIndex + 1], "-m") != 0 && strcmp(argv[argumentIndex + 1], "--message") != 0 && strcmp(argv[argumentIndex + 1], "-F") != 0 && strcmp(argv[argumentIndex + 1], "--file") != 0) {
                 fs_file_writef(STDERR, "Unknown new option: %s.\n", argv[argumentIndex + 1]);
                 print_usage(argv[0]);
                 return 1;
             }
 
             if (argc <= argumentIndex + 2) {
-                fs_file_writef(STDERR, "The %s option requires a message.\n", argv[argumentIndex + 1]);
+                fs_file_writef(STDERR, "The %s option requires a value.\n", argv[argumentIndex + 1]);
                 print_usage(argv[0]);
                 return 1;
             }
@@ -1491,10 +1562,14 @@ int main(int argc, char** argv)
                 return 1;
             }
 
-            pMessage = argv[argumentIndex + 2];
+            if (strcmp(argv[argumentIndex + 1], "-F") == 0 || strcmp(argv[argumentIndex + 1], "--file") == 0) {
+                pDescriptionPath = argv[argumentIndex + 2];
+            } else {
+                pMessage = argv[argumentIndex + 2];
+            }
         }
 
-        return create_ticket(pMessage);
+        return create_ticket(pMessage, pDescriptionPath);
     }
 
     if (strcmp(argv[argumentIndex], "comment") == 0) {

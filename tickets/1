@@ -136,3 +136,11 @@ Sometimes people just don't care about metadata and just want a place to track t
 The parsing rules should be relaxed to allow basically anything. Metadata still needs to be recognized, and should still be placed at the top in its own section, one metadata item per line. The first non-metadata section should be considered the main content, subsequent sections should be considered comments. Sections are separated by "---".
 
 For the VS Code extension, instead of "Invalid" it should be "Uncategorized". There should be no need for an "Invalid" group because nothing should be considered as such in this, except for file system management stuff such as duplicated IDs, which shouldn't be possible since it's tied to the file system.
+
+---
+
+2026-08-11 - David Reid
+
+Tickets with complex content should be able to be created non-interactively through the CLI. It should be possible to write the description to a file, and then in the "new" command specify that file which will copy the contents of it to the ticket.
+
+This applies only to the CLI, and the VS Code plugin need not be considered.
