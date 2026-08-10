@@ -86,6 +86,7 @@ The extension must:
 - Put appropriate commands in ticket context menus.
 - Give useful diagnostics for files in the Invalid group.
 - Parse ticket files directly so that the extension does not require a separately installed CLI program.
+- Prevent concurrent extension instances from overwriting a ticket when both instances select the same new ID. The VS Code workspace file API does not provide exclusive creation through its normal write operation.
 
 Shared behavior and tests
 
