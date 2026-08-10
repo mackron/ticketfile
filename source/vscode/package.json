@@ -44,6 +44,16 @@
                     "group": "navigation"
                 }
             ]
+        },
+        "configuration": {
+            "title": "Ticket Explorer",
+            "properties": {
+                "ticketfile.ticketsFolder": {
+                    "type": "string",
+                    "default": "tickets",
+                    "description": "Path to the tickets folder, relative to the first workspace folder."
+                }
+            }
         }
     }
 }

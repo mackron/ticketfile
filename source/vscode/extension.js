@@ -1,5 +1,12 @@
 const vscode = require("vscode");
 
+function getTicketsFolderPath()
+{
+    const configuredPath = vscode.workspace.getConfiguration("ticketfile").get("ticketsFolder", "tickets");
+
+    return configuredPath.trim() === "" ? "tickets" : configuredPath;
+}
+
 class TicketGroup extends vscode.TreeItem
 {
     constructor(label, status, collapsibleState)
@@ -79,7 +86,7 @@ class TicketProvider
             return tickets;
         }
 
-        const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, "tickets");
+        const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, getTicketsFolderPath());
         let entries;
 
         try {
@@ -171,18 +178,45 @@ function activate(context)
 
     context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand);
 
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders !== undefined && workspaceFolders.length > 0) {
-        const ticketPattern = new vscode.RelativePattern(workspaceFolders[0], "tickets/*");
-        const ticketWatcher = vscode.workspace.createFileSystemWatcher(ticketPattern);
+    let watcherDisposables = [];
 
-        context.subscriptions.push(
-            ticketWatcher,
-            ticketWatcher.onDidCreate(() => ticketProvider.refresh()),
-            ticketWatcher.onDidChange(() => ticketProvider.refresh()),
-            ticketWatcher.onDidDelete(() => ticketProvider.refresh())
-        );
+    function updateTicketWatcher()
+    {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+
+        for (const disposable of watcherDisposables) {
+            disposable.dispose();
+        }
+        watcherDisposables = [];
+
+        if (workspaceFolders !== undefined && workspaceFolders.length > 0) {
+            const ticketsFolderPath = getTicketsFolderPath().replace(/\\/g, "/").replace(/\/+$/, "");
+            const ticketPattern = new vscode.RelativePattern(workspaceFolders[0], `${ticketsFolderPath}/*`);
+            const ticketWatcher = vscode.workspace.createFileSystemWatcher(ticketPattern);
+
+            watcherDisposables.push(
+                ticketWatcher.onDidCreate(() => ticketProvider.refresh()),
+                ticketWatcher.onDidChange(() => ticketProvider.refresh()),
+                ticketWatcher.onDidDelete(() => ticketProvider.refresh()),
+                ticketWatcher
+            );
+        }
     }
+
+    updateTicketWatcher();
+
+    const configurationRegistration = vscode.workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration("ticketfile.ticketsFolder")) {
+            updateTicketWatcher();
+            ticketProvider.refresh();
+        }
+    });
+
+    context.subscriptions.push(configurationRegistration, new vscode.Disposable(() => {
+        for (const disposable of watcherDisposables) {
+            disposable.dispose();
+        }
+    }));
 }
 
 function deactivate()
