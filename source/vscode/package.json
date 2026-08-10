@@ -39,6 +39,16 @@
                 "command": "ticketfile.createTicket",
                 "title": "Create Ticket",
                 "icon": "$(add)"
+            },
+            {
+                "command": "ticketfile.closeTicket",
+                "title": "Close Ticket",
+                "icon": "$(issue-closed)"
+            },
+            {
+                "command": "ticketfile.reopenTicket",
+                "title": "Reopen Ticket",
+                "icon": "$(history)"
             }
         ],
         "menus": {
@@ -52,6 +62,18 @@
                     "command": "ticketfile.refresh",
                     "when": "view == ticketfile.tickets",
                     "group": "navigation@2"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "ticketfile.closeTicket",
+                    "when": "view == ticketfile.tickets && viewItem == openTicket",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "ticketfile.reopenTicket",
+                    "when": "view == ticketfile.tickets && viewItem == closedTicket",
+                    "group": "inline@1"
                 }
             ]
         },

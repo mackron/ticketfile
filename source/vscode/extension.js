@@ -53,6 +53,67 @@ async function createTicket()
     }
 }
 
+function findStatusRange(text)
+{
+    let cursor = 0;
+    let statusRange;
+
+    while (cursor < text.length) {
+        let lineEnd = text.indexOf("\n", cursor);
+        if (lineEnd === -1) {
+            lineEnd = text.length;
+        }
+
+        const line = text.substring(cursor, lineEnd);
+        if (line.trim() === "---") {
+            return statusRange;
+        }
+
+        const match = /^([ \t\r]*status[ \t]*:[ \t]*)(.*?)([ \t\r]*)$/.exec(line);
+        if (match !== null) {
+            statusRange = {
+                offset: cursor + match[1].length,
+                length: match[2].length
+            };
+        }
+
+        cursor = lineEnd + 1;
+    }
+
+    return undefined;
+}
+
+async function updateTicketStatus(ticketItem, status, ticketProvider)
+{
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket before changing its status.");
+        return;
+    }
+
+    try {
+        const fileData = await vscode.workspace.fs.readFile(ticketItem.resourceUri);
+        const text = Buffer.from(fileData).toString("utf8");
+        const statusRange = findStatusRange(text);
+
+        if (statusRange === undefined) {
+            vscode.window.showErrorMessage(`Ticket ${ticketItem.fileName} does not have valid status metadata.`);
+            return;
+        }
+
+        const currentStatus = text.substring(statusRange.offset, statusRange.offset + statusRange.length);
+        if (currentStatus === status) {
+            return;
+        }
+
+        const updatedText = text.substring(0, statusRange.offset) + status + text.substring(statusRange.offset + statusRange.length);
+
+        await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
+        ticketProvider.refresh();
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to update ticket. ${error.message}`);
+    }
+}
+
 class TicketGroup extends vscode.TreeItem
 {
     constructor(label, status, collapsibleState)
@@ -77,6 +138,7 @@ class TicketItem extends vscode.TreeItem
 
         this.fileName = fileName;
         this.status = status;
+        this.contextValue = status === "open" || status === "closed" ? `${status}Ticket` : "invalidTicket";
         this.resourceUri = fileUri;
         this.command = {
             command: "vscode.open",
@@ -222,8 +284,15 @@ function activate(context)
         ticketProvider.refresh();
     });
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", createTicket);
+    const closeTicketCommand = vscode.commands.registerCommand("ticketfile.closeTicket", (ticketItem) => {
+        return updateTicketStatus(ticketItem, "closed", ticketProvider);
+    });
+    const reopenTicketCommand = vscode.commands.registerCommand("ticketfile.reopenTicket", (ticketItem) => {
+        return updateTicketStatus(ticketItem, "open", ticketProvider);
+    });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand);
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, registration, refreshCommand, createTicketCommand, closeTicketCommand, reopenTicketCommand
+    );
 
     let watcherDisposables = [];
 
