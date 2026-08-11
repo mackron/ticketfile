@@ -29,7 +29,7 @@
             "activitybar": [
                 {
                     "id": "ticketfile",
-                    "title": "Ticket Explorer",
+                    "title": "Tickets",
                     "icon": "resources/ticket.svg"
                 }
             ]
