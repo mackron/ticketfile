@@ -1,8 +1,5 @@
 #include "../../external/fs/fs.c"
-
-#define TICKETFILE_VERSION_MAJOR  1
-#define TICKETFILE_VERSION_MINOR  0
-#define TICKETFILE_VERSION_PATCH  0
+#include "../ticketfile_version.h"
 
 static fs_file* STDIN  = NULL;
 static fs_file* STDOUT = NULL;

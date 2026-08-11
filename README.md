@@ -47,6 +47,17 @@ See [Ticket 0](tickets/0) for an example and a more complete description on the 
 
 For the CLI, just compile source/cli/ticketfile.c or use CMake. The VS Code extension is in source/vscode.
 
+To package the VS Code extension, install Node.js and run:
+
+```
+cd source/vscode
+npm run package
+```
+
+The command creates `ticketfile-<version>.vsix` in `source/vscode`. It reads the version from `source/ticketfile_version.h`, copies the root license into a temporary package, and removes temporary files when it finishes. The packaging tool can be downloaded by `npx` when it is not already installed.
+
+Update the three macros in `source/ticketfile_version.h` for a release. CMake, the CLI, and the extension packaging script all use this version. The packaging script also updates the version stored in `source/vscode/package.json`.
+
 
 ## License
 

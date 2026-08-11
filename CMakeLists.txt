@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Extract version from source code.
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/source/cli/ticketfile.c" TICKETFILE_CLI_SOURCE)
-string(REGEX MATCH "#define TICKETFILE_VERSION_MAJOR[ \t]+([0-9]+)" _major_match "${TICKETFILE_CLI_SOURCE}")
+# Extract version from shared version header.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/source/ticketfile_version.h" TICKETFILE_VERSION_SOURCE)
+string(REGEX MATCH "#define TICKETFILE_VERSION_MAJOR[ \t]+([0-9]+)" _major_match "${TICKETFILE_VERSION_SOURCE}")
 set(TICKETFILE_VERSION_MAJOR "${CMAKE_MATCH_1}")
-string(REGEX MATCH "#define TICKETFILE_VERSION_MINOR[ \t]+([0-9]+)" _minor_match "${TICKETFILE_CLI_SOURCE}")
+string(REGEX MATCH "#define TICKETFILE_VERSION_MINOR[ \t]+([0-9]+)" _minor_match "${TICKETFILE_VERSION_SOURCE}")
 set(TICKETFILE_VERSION_MINOR "${CMAKE_MATCH_1}")
-string(REGEX MATCH "#define TICKETFILE_VERSION_PATCH[ \t]+([0-9]+)" _patch_match "${TICKETFILE_CLI_SOURCE}")
+string(REGEX MATCH "#define TICKETFILE_VERSION_PATCH[ \t]+([0-9]+)" _patch_match "${TICKETFILE_VERSION_SOURCE}")
 set(TICKETFILE_VERSION_PATCH "${CMAKE_MATCH_1}")
 set(TICKETFILE_VERSION "${TICKETFILE_VERSION_MAJOR}.${TICKETFILE_VERSION_MINOR}.${TICKETFILE_VERSION_PATCH}")
 
