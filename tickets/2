@@ -1,7 +1,13 @@
-status: open
+status: closed
 
 ---
 
 Testing ticket.
 
 This ticket is used for testing and can be considered disposable.
+
+---
+
+2026-08-12 - David Reid
+
+Changed status to closed.
