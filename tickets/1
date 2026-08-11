@@ -1,4 +1,4 @@
-status: open
+status: closed
 
 ---
 
@@ -144,3 +144,9 @@ For the VS Code extension, instead of "Invalid" it should be "Uncategorized". Th
 Tickets with complex content should be able to be created non-interactively through the CLI. It should be possible to write the description to a file, and then in the "new" command specify that file which will copy the contents of it to the ticket.
 
 This applies only to the CLI, and the VS Code plugin need not be considered.
+
+---
+
+2026-08-12 - David Reid
+
+Version 1 has been completed and released. Closing this ticket.
