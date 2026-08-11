@@ -4,11 +4,11 @@ status: open
 
 An example describing the ticket system (this line is the short description).
 
-The very top line before the "---" is just metadata about the ticket. The "status" item is mandatory, everything else will be parsed, but ignored. Everything below that contains information about the ticket. The first line after "---" is the short description of the ticket. Everything after that is the detailed description.
+The very top line before the "---" is just metadata about the ticket and is optional. The "status" item is optional, but will be recognized by tools. Everything below the metadata section contains the normal ticket description. The first line is the short description and will be used by tools when listing the ticket. Everything after that is the detailed description.
 
-The name of the file should contain only the ticket number and nothing else. This acts as the unique ID of the ticket.
+The name of the file should contain only the ticket number and nothing else. This acts as the unique ID of the ticket. A directory cannot contain two files with the same name, which prevents duplicate IDs in one tickets directory.
 
-The status can be one of the following:
+Recognized statuses include the following:
 
     open
     closed
@@ -25,6 +25,6 @@ This is a comment that can be added to the ticket for later updates.
 
 ---
 
-2026-07-11 - David Reid
+2026-07-12 - David Reid
 
 This is another comment that is added at a later date again.
