@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <time.h>
+
 #include "../../external/fs/fs.c"
 #include "../ticketfile_version.h"
 
@@ -6,6 +9,49 @@ static fs_file* STDOUT = NULL;
 static fs_file* STDERR = NULL;
 
 static const char* g_pTicketsFolder = "tickets";
+
+static char* get_environment_variable(const char* pName)
+{
+    char* pValue;
+    size_t valueLength;
+
+    #if defined(_MSC_VER)
+    {
+        valueLength = 0;
+        if (getenv_s(&valueLength, NULL, 0, pName) != 0 || valueLength == 0) {
+            return NULL;
+        }
+
+        pValue = (char*)malloc(valueLength);
+        if (pValue == NULL) {
+            return NULL;
+        }
+
+        if (getenv_s(&valueLength, pValue, valueLength, pName) != 0) {
+            free(pValue);
+            return NULL;
+        }
+    }
+    #else
+    {
+        const char* pEnvironmentValue = getenv(pName);
+
+        if (pEnvironmentValue == NULL) {
+            return NULL;
+        }
+
+        valueLength = strlen(pEnvironmentValue) + 1;
+        pValue = (char*)malloc(valueLength);
+        if (pValue == NULL) {
+            return NULL;
+        }
+
+        memcpy(pValue, pEnvironmentValue, valueLength);
+    }
+    #endif
+
+    return pValue;
+}
 
 static void print_version(void)
 {
@@ -401,9 +447,9 @@ static int run_text_editor(const char* pFilePath)
     size_t i;
     int result;
 
-    pEditor = getenv("VISUAL");
+    pEditor = get_environment_variable("VISUAL");
     if (pEditor == NULL || pEditor[0] == '\0') {
-        pEditor = getenv("EDITOR");
+        pEditor = get_environment_variable("EDITOR");
     }
 
     if (pEditor == NULL || pEditor[0] == '\0') {
@@ -555,7 +601,7 @@ static int copy_string(char* pDestination, size_t destinationCapacity, const cha
 
 static int get_comment_author(char* pAuthor, size_t authorCapacity)
 {
-    const char* pEnvironmentAuthor = getenv("TICKET_AUTHOR");
+    const char* pEnvironmentAuthor = get_environment_variable("TICKET_AUTHOR");
 
     if (pEnvironmentAuthor != NULL && pEnvironmentAuthor[0] != '\0' &&
         copy_string(pAuthor, authorCapacity, pEnvironmentAuthor)) {
@@ -581,13 +627,32 @@ static char* create_comment_header(size_t* pHeaderLength, int* pAuthorFound)
     size_t authorLength;
     char* pHeader;
     time_t currentTime;
-    struct tm* pLocalTime;
+    struct tm localTime;
 
     *pAuthorFound = get_comment_author(author, sizeof(author));
 
     currentTime = time(NULL);
-    pLocalTime = localtime(&currentTime);
-    if (pLocalTime == NULL || strftime(date, sizeof(date), "%Y-%m-%d", pLocalTime) == 0) {
+    #if defined(_MSC_VER)
+    {
+        if (localtime_s(&localTime, &currentTime) != 0) {
+            fs_file_writef(STDERR, "Failed to determine current date.\n");
+            return NULL;
+        }
+    }
+    #else
+    {
+        struct tm* pLocalTime = localtime(&currentTime);
+
+        if (pLocalTime == NULL) {
+            fs_file_writef(STDERR, "Failed to determine current date.\n");
+            return NULL;
+        }
+
+        localTime = *pLocalTime;
+    }
+    #endif
+
+    if (strftime(date, sizeof(date), "%Y-%m-%d", &localTime) == 0) {
         fs_file_writef(STDERR, "Failed to determine current date.\n");
         return NULL;
     }
