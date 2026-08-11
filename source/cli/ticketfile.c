@@ -1123,6 +1123,51 @@ static int show_ticket(const char* id)
     return 0;
 }
 
+static int get_ticket_metadata(const char* id, const char* pKey)
+{
+    fs_result result;
+    char* pFilePath;
+    char* pFileData;
+    size_t fileDataSize;
+    ticket parsedTicket;
+    text_range key;
+    size_t i;
+
+    if (!is_ticket_id(id)) {
+        fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
+        return 1;
+    }
+
+    pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+    if (pFilePath == NULL) {
+        fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+        return 1;
+    }
+
+    result = read_text_file(pFilePath, &pFileData, &fileDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+        fs_file_writef(STDERR, "Failed to parse %s.\n", pFilePath);
+        return 1;
+    }
+
+    key = trim_line(pKey, 0, strlen(pKey));
+    for (i = parsedTicket.metadataCount; i > 0; i -= 1) {
+        const ticket_metadata* pMetadata = &parsedTicket.pMetadata[i - 1];
+
+        if (text_range_equal(pFileData, pMetadata->key, pKey, key)) {
+            fs_file_writef(STDOUT, "%.*s\n", (int)pMetadata->value.length, pFileData + pMetadata->value.offset);
+            break;
+        }
+    }
+
+    return 0;
+}
+
 static int edit_ticket(const char* id)
 {
     fs_result result;
@@ -1688,8 +1733,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        fs_file_writef(STDERR, "The get command is not implemented.\n");
-        return 1;
+        return get_ticket_metadata(argv[argumentIndex + 1], argv[argumentIndex + 2]);
     }
 
     if (strcmp(argv[argumentIndex], "set") == 0 || strcmp(argv[argumentIndex], "clear") == 0) {

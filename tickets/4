@@ -88,7 +88,7 @@ CLI:
 - [x] Add argument parsing for "get", "set", and "clear".
 - [x] Validate empty keys, empty values, duplicate keys, and malformed arguments.
 - [x] Split "set" arguments at the first colon.
-- [ ] Read one metadata value with "get".
+- [x] Read one metadata value with "get".
 - [ ] Set one or more metadata items in one atomic update.
 - [ ] Clear one or more metadata items in one atomic update.
 - [ ] Preserve existing metadata formatting and ticket descriptions during updates.
