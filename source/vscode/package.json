@@ -2,6 +2,7 @@
     "name": "ticketfile",
     "displayName": "Ticket Explorer",
     "description": "Manage plain-text tickets from Visual Studio Code.",
+    "icon": "resources/marketplace-icon.png",
     "version": "1.0.0",
     "publisher": "mackron",
     "license": "(Unlicense OR MIT-0)",

@@ -1,3 +1,4 @@
 .vscodeignore
 package_extension.js
+resources/marketplace-icon.svg
 ticket_parser.test.js
