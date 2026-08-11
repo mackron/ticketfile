@@ -1,0 +1,131 @@
+status: open
+
+---
+
+Generalize ticket statuses.
+
+Currently the recognized options are "open" and "closed", but this is rigid and goes against the
+philosophy of this project. The statuses should be generalized and the tools updated to
+accommodate.
+
+
+CLI:
+
+The CLI currently has "close" and "reopen" options. This needs to change to a general option. One
+idea is to have a "get" and "set" command which works like this:
+
+    ticket get 123 status
+    ticket set 123 status:closed
+    ticket clear 123 status
+
+This way, the commands are generalized across all metadata tags which will allow things like this:
+
+    ticket set 123 "assignee:David Reid"
+
+When a "get" command is used but the metadata key does not exist, it should still return success,
+but output nothing.
+
+The "set" command should create the metadata tag if it does not exist. It should also allow
+changing of multiple tags in a single command:
+
+    ticket set 123 status:review "assignee:David Reid"
+
+When setting metadata, there is a special case for the status. In this case, it will by default
+insert a message saying "Status changed from [old status] to [new status]". If there is no old
+status, there should be no message. Clearing a status should not add a message. Setting a status
+to its current value should succeed without changing the ticket or adding a message.
+
+The "clear" command will delete the metadata item. Multiple metadata items can be passed in
+exactly like "set":
+
+    ticket clear 123 status assignee
+
+The "set" and "clear" commands should honour the "--no-comment" option.
+
+Metadata arguments for "set" should be split at the first colon so values can contain additional
+colons. Keys and values must not be empty. A command must not contain the same key more than once.
+Metadata changes should be atomic. If one argument is invalid, no metadata must change.
+
+The "close" and "reopen" commands would become aliases for the time being for backwards
+compatibility and should keep their current behaviour. They should be removed from usage
+instructions and all documentation to discourage use.
+
+
+VS Code:
+
+The VS Code extension should allow users to configure groups which map to a status. The default
+configuration should contain the current Open and Closed groups with their current expanded
+states. Group order should follow the order in the configuration. Each group should have a label,
+status, and initial collapsed state. For example:
+
+    {
+        "label": "Open",
+        "status": "open",
+        "expanded": true
+    }
+
+The configuration should work in user and workspace settings. A workspace setting should replace
+the complete user group list instead of merging with it.
+Changes to group or initial-status configuration should refresh the ticket tree automatically.
+
+There should be a permanent Uncategorized group as a fallback for tickets which have no status or
+have a status that does not map to a configured group. Duplicate status mappings should be treated
+as an invalid configuration and reported to the user.
+
+The right-click menu should have a "Set Status..." command. The command should open a selection
+list which contains all configured statuses. A dynamic context menu or sub-menu should not be used
+because VS Code menu contributions are static.
+
+Since the status is now generalized, there should be a configuration option for the initial status.
+It should default to "open". If the configuration has an empty string, new tickets should not have
+status metadata.
+
+
+Development Checklist:
+
+CLI:
+
+- [ ] Add argument parsing for "get", "set", and "clear".
+- [ ] Validate empty keys, empty values, duplicate keys, and malformed arguments.
+- [ ] Split "set" arguments at the first colon.
+- [ ] Read one metadata value with "get".
+- [ ] Set one or more metadata items in one atomic update.
+- [ ] Clear one or more metadata items in one atomic update.
+- [ ] Preserve existing metadata formatting and ticket descriptions during updates.
+- [ ] Add status history messages when an existing status changes.
+- [ ] Support "--no-comment" for "set" and "clear".
+- [ ] Make unchanged status updates succeed without changing the ticket.
+- [ ] Keep "close" and "reopen" as undocumented compatibility aliases.
+- [ ] Add tests for missing, new, replaced, and removed metadata.
+- [ ] Add tests for multiple metadata changes and atomic failure.
+- [ ] Add tests for invalid and duplicate metadata arguments.
+- [ ] Add tests for spaces and additional colons in values.
+- [ ] Add tests for status history and "--no-comment".
+- [ ] Add tests for unchanged statuses and compatibility aliases.
+
+VS Code:
+
+- [ ] Define settings for status groups and initial status.
+- [ ] Add configuration validation and duplicate status detection.
+- [ ] Load user or workspace group configuration in its specified order.
+- [ ] Refresh the ticket tree after relevant configuration changes.
+- [ ] Build ticket groups from configuration instead of fixed statuses.
+- [ ] Map missing and unknown statuses to Uncategorized.
+- [ ] Preserve current Open and Closed behavior in default settings.
+- [ ] Replace Close and Reopen actions with "Set Status...".
+- [ ] Show configured statuses in a selection list.
+- [ ] Update status metadata and add the applicable history message.
+- [ ] Use configured initial status when creating a ticket.
+- [ ] Add tests for configuration validation and defaults.
+- [ ] Add tests for group order, collapsed state, and status mapping.
+- [ ] Add tests for Uncategorized fallback.
+- [ ] Add tests for status selection and status updates.
+- [ ] Add tests for ticket initial status and configuration refresh.
+
+General:
+
+- [ ] Document general metadata commands and compatibility behavior.
+- [ ] Document status group settings, scopes, replacement behavior, and examples.
+- [ ] Remove Close and Reopen commands from user documentation.
+- [ ] Check all documentation for assumptions that only Open and Closed statuses exist.
+- [ ] Run all CLI and VS Code tests.
