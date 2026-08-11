@@ -1,10 +1,19 @@
 #include "../../external/fs/fs.c"
 
+#define TICKETFILE_VERSION_MAJOR  1
+#define TICKETFILE_VERSION_MINOR  0
+#define TICKETFILE_VERSION_PATCH  0
+
 static fs_file* STDIN  = NULL;
 static fs_file* STDOUT = NULL;
 static fs_file* STDERR = NULL;
 
 static const char* g_pTicketsFolder = "tickets";
+
+static void print_version(void)
+{
+    fs_file_writef(STDOUT, "ticket v%d.%d.%d\n", TICKETFILE_VERSION_MAJOR, TICKETFILE_VERSION_MINOR, TICKETFILE_VERSION_PATCH);
+}
 
 static void print_usage(const char* pExecutablePath)
 {
@@ -14,6 +23,8 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "OPTIONS:\n");
     fs_file_writef(STDOUT, "    -h, --help\n");
     fs_file_writef(STDOUT, "        Show this help text.\n");
+    fs_file_writef(STDOUT, "    -v, --version\n");
+    fs_file_writef(STDOUT, "        Show version information.\n");
     fs_file_writef(STDOUT, "    -d <path>, --directory <path>\n");
     fs_file_writef(STDOUT, "        Use <path> as the tickets directory. Default: tickets.\n");
     fs_file_writef(STDOUT, "\n");
@@ -1615,6 +1626,11 @@ int main(int argc, char** argv)
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
         print_usage(argv[0]);
+        return 0;
+    }
+
+    if (strcmp(argv[argumentIndex], "--version") == 0 || strcmp(argv[argumentIndex], "-v") == 0) {
+        print_version();
         return 0;
     }
 
