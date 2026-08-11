@@ -49,13 +49,15 @@ function main() {
     ].join(".");
     const packageData = JSON.parse(fs.readFileSync(packagePath, "utf8"));
     const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "ticketfile-vscode-"));
-    const outputPath = path.join(extensionDirectory, "ticketfile-" + version + ".vsix");
+    const outputDirectory = path.join(repositoryDirectory, "build", "vscode");
+    const outputPath = path.join(outputDirectory, "ticketfile-" + version + ".vsix");
     const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
     let failed = false;
 
     try {
         packageData.version = version;
         writePackage(packageData, packagePath);
+        fs.mkdirSync(outputDirectory, { recursive: true });
 
         fs.copyFileSync(path.join(extensionDirectory, ".vscodeignore"), path.join(temporaryDirectory, ".vscodeignore"));
         fs.copyFileSync(path.join(extensionDirectory, "extension.js"), path.join(temporaryDirectory, "extension.js"));

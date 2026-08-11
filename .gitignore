@@ -2,4 +2,3 @@
 build/
 build-release/
 build-test/
-source/vscode/*.vsix

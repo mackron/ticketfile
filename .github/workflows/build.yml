@@ -82,5 +82,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ticketfile-vscode
-          path: source/vscode/ticketfile-*.vsix
+          path: build/vscode/ticketfile-*.vsix
           if-no-files-found: error
