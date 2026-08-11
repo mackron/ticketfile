@@ -4,9 +4,14 @@ status: open
 
 An example describing the ticket system (this line is the short description).
 
-The very top line before the "---" is just metadata about the ticket and is optional. The "status" item is optional, but will be recognized by tools. Everything below the metadata section contains the normal ticket description. The first line is the short description and will be used by tools when listing the ticket. Everything after that is the detailed description.
+The very top line before the "---" is just metadata about the ticket and is optional. The "status"
+item is optional, but will be recognized by tools. Everything below the metadata section contains
+the normal ticket description. The first line is the short description and will be used by tools
+when listing the ticket. Everything after that is the detailed description.
 
-The name of the file should contain only the ticket number and nothing else. This acts as the unique ID of the ticket. A directory cannot contain two files with the same name, which prevents duplicate IDs in one tickets directory.
+The name of the file should contain only the ticket number and nothing else. This acts as the unique
+ID of the ticket. A directory cannot contain two files with the same name, which prevents duplicate
+IDs in one tickets directory.
 
 Recognized statuses include the following:
 

@@ -9,7 +9,8 @@ status: open
 
 Error with login screen.
 
-If the user hits tab from the username field, it puts keyboard focus on the "Login" button instead of the password field.
+If the user hits tab from the username field, it puts keyboard focus on
+the "Login" button instead of the password field.
 ```
 
 The tools in this repository will recognize the "status" metadata at the top and categorize it appropriately. The recognized statuses are "open" and "closed". Metadata is optional. A ticket could also look like this:
@@ -31,7 +32,8 @@ status: closed
 
 Error with login screen.
 
-If the user hits tab from the username field, it puts keyboard focus on the "Login" button instead of the password field.
+If the user hits tab from the username field, it puts keyboard focus on
+the "Login" button instead of the password field.
 
 ---
 
