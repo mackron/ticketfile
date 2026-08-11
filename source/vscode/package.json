@@ -4,7 +4,15 @@
     "description": "Manage plain-text tickets from Visual Studio Code.",
     "version": "1.0.0",
     "publisher": "mackron",
-    "license": "SEE LICENSE IN LICENSE",
+    "license": "(Unlicense OR MIT-0)",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mackron/ticketfile.git"
+    },
+    "homepage": "https://github.com/mackron/ticketfile",
+    "bugs": {
+        "url": "https://github.com/mackron/ticketfile/issues"
+    },
     "engines": {
         "vscode": "^1.74.0"
     },

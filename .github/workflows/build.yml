@@ -55,3 +55,32 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.executable }}
           if-no-files-found: error
+
+  extension:
+    name: VS Code extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Test
+        run: npm test
+        working-directory: source/vscode
+
+      - name: Package
+        run: npm run package
+        working-directory: source/vscode
+
+      - name: Upload extension
+        uses: actions/upload-artifact@v7
+        with:
+          name: ticketfile-vscode
+          path: source/vscode/ticketfile-*.vsix
+          if-no-files-found: error
