@@ -422,6 +422,7 @@ function activate(context)
     }
 
     const refreshCommand = vscode.commands.registerCommand("ticketfile.refresh", () => {
+        updateTicketWatcher();
         ticketProvider.refresh();
     });
     const filterCommand = vscode.commands.registerCommand("ticketfile.filterTickets", async () => {
@@ -440,7 +441,11 @@ function activate(context)
         ticketProvider.setFilter("");
         updateFilterDisplay();
     });
-    const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", createTicket);
+    const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", async () => {
+        await createTicket();
+        updateTicketWatcher();
+        ticketProvider.refresh();
+    });
     const openTicketCommand = vscode.commands.registerCommand("ticketfile.openTicket", openTicket);
     const addCommentCommand = vscode.commands.registerCommand("ticketfile.addComment", commentOnTicket);
     const closeTicketCommand = vscode.commands.registerCommand("ticketfile.closeTicket", (ticketItem) => {

@@ -1,0 +1,15 @@
+status: closed
+
+---
+
+Code: Tickets list is not auto-updated.
+
+This is definitely happening with new repositories without an existing "tickets" directory. I suspect the file system watcher is failing due to the tickets folder not initially existing and is then never set up once the folder is created for the first time due to the creation of a new ticket.
+
+Perhaps the refresh button should check that the file system watcher is active, and again when a ticket is created?
+
+---
+
+2026-08-11 - David Reid
+
+Changed status to closed.
