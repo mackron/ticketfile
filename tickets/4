@@ -95,7 +95,7 @@ CLI:
 - [x] Add status history messages when an existing status changes.
 - [x] Support "--no-comment" for "set" and "clear".
 - [x] Make unchanged status updates succeed without changing the ticket.
-- [ ] Keep "close" and "reopen" as undocumented compatibility aliases.
+- [x] Keep "close" and "reopen" as undocumented compatibility aliases.
 - [ ] Add tests for missing, new, replaced, and removed metadata.
 - [ ] Add tests for multiple metadata changes and atomic failure.
 - [ ] Add tests for invalid and duplicate metadata arguments.

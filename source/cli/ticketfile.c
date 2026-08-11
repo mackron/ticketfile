@@ -91,13 +91,6 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "    clear <id> <key> [<key> ...] [--no-comment]\n");
     fs_file_writef(STDOUT, "        Remove one or more metadata values.\n");
     fs_file_writef(STDOUT, "\n");
-    fs_file_writef(STDOUT, "    close <id> [--no-comment]\n");
-    fs_file_writef(STDOUT, "        Set status to closed and append a dated history entry.\n");
-    fs_file_writef(STDOUT, "\n");
-    fs_file_writef(STDOUT, "    reopen <id> [--no-comment]\n");
-    fs_file_writef(STDOUT, "        Set status to open and append a dated history entry.\n");
-    fs_file_writef(STDOUT, "        Use --no-comment to change status without a history entry.\n");
-    fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    new [-m <text> | --message <text> |\n");
     fs_file_writef(STDOUT, "         -F <path> | --file <path>]\n");
     fs_file_writef(STDOUT, "        Create an open ticket. Without input, open an editor.\n");
