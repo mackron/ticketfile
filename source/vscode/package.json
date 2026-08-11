@@ -115,11 +115,6 @@
             ],
             "view/item/context": [
                 {
-                    "command": "ticketfile.openTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /Ticket$/",
-                    "group": "inline@0"
-                },
-                {
                     "command": "ticketfile.closeTicket",
                     "when": "view == ticketfile.tickets && viewItem =~ /^(open|uncategorized)Ticket$/",
                     "group": "inline@1"
@@ -133,11 +128,6 @@
                     "command": "ticketfile.addComment",
                     "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed|uncategorized)Ticket$/",
                     "group": "inline@2"
-                },
-                {
-                    "command": "ticketfile.openTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /Ticket$/",
-                    "group": "navigation@1"
                 },
                 {
                     "command": "ticketfile.closeTicket",
