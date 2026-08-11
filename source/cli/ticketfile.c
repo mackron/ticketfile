@@ -171,6 +171,64 @@ static int text_range_equal_string(const char* pText, text_range range, const ch
     return text_range_equal(pText, range, pValue, valueRange);
 }
 
+static int parse_metadata_key_only_argument(const char* pArgument, text_range* pKey)
+{
+    *pKey = trim_line(pArgument, 0, strlen(pArgument));
+
+    return pKey->length > 0 && memchr(pArgument + pKey->offset, ':', pKey->length) == NULL;
+}
+
+static int parse_metadata_set_argument(const char* pArgument, text_range* pKey, text_range* pValue)
+{
+    const char* pSeparator = strchr(pArgument, ':');
+    size_t argumentLength = strlen(pArgument);
+    size_t separatorOffset;
+
+    if (pSeparator == NULL) {
+        return 0;
+    }
+
+    separatorOffset = (size_t)(pSeparator - pArgument);
+    *pKey   = trim_line(pArgument, 0, separatorOffset);
+    *pValue = trim_line(pArgument, separatorOffset + 1, argumentLength - separatorOffset - 1);
+
+    return pKey->length > 0 && pValue->length > 0;
+}
+
+static int metadata_arguments_have_duplicate_keys(int argumentCount, char** ppArguments, int hasValues)
+{
+    int argumentIndexA;
+
+    for (argumentIndexA = 0; argumentIndexA < argumentCount; ++argumentIndexA) {
+        text_range keyA;
+        text_range valueA;
+        int argumentIndexB;
+
+        if (hasValues) {
+            parse_metadata_set_argument(ppArguments[argumentIndexA], &keyA, &valueA);
+        } else {
+            parse_metadata_key_only_argument(ppArguments[argumentIndexA], &keyA);
+        }
+
+        for (argumentIndexB = argumentIndexA + 1; argumentIndexB < argumentCount; ++argumentIndexB) {
+            text_range keyB;
+            text_range valueB;
+
+            if (hasValues) {
+                parse_metadata_set_argument(ppArguments[argumentIndexB], &keyB, &valueB);
+            } else {
+                parse_metadata_key_only_argument(ppArguments[argumentIndexB], &keyB);
+            }
+
+            if (text_range_equal(ppArguments[argumentIndexA], keyA, ppArguments[argumentIndexB], keyB)) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 {
     size_t cursor = 0;
@@ -1617,9 +1675,16 @@ int main(int argc, char** argv)
     }
 
     if (strcmp(argv[argumentIndex], "get") == 0) {
+        text_range key;
+
         if (argc != argumentIndex + 3) {
             fs_file_writef(STDERR, "The get command requires one ticket ID and one metadata key.\n");
             print_usage(argv[0]);
+            return 1;
+        }
+
+        if (!parse_metadata_key_only_argument(argv[argumentIndex + 2], &key)) {
+            fs_file_writef(STDERR, "The get command requires a non-empty metadata key without a colon.\n");
             return 1;
         }
 
@@ -1629,7 +1694,9 @@ int main(int argc, char** argv)
 
     if (strcmp(argv[argumentIndex], "set") == 0 || strcmp(argv[argumentIndex], "clear") == 0) {
         int metadataArgumentCount;
+        int metadataArgumentIndex;
         int addComment = 1;
+        int hasValues = strcmp(argv[argumentIndex], "set") == 0;
 
         if (argc > argumentIndex + 1 && strcmp(argv[argc - 1], "--no-comment") == 0) {
             addComment = 0;
@@ -1639,6 +1706,34 @@ int main(int argc, char** argv)
         if (metadataArgumentCount < 1) {
             fs_file_writef(STDERR, "The %s command requires one ticket ID and at least one metadata argument.\n", argv[argumentIndex]);
             print_usage(argv[0]);
+            return 1;
+        }
+
+        for (metadataArgumentIndex = 0; metadataArgumentIndex < metadataArgumentCount; ++metadataArgumentIndex) {
+            const char* pMetadataArgument = argv[argumentIndex + 2 + metadataArgumentIndex];
+            text_range key;
+            text_range value;
+            int isValid;
+
+            if (strcmp(pMetadataArgument, "--no-comment") == 0) {
+                fs_file_writef(STDERR, "The --no-comment option must be the final argument.\n");
+                return 1;
+            }
+
+            if (hasValues) {
+                isValid = parse_metadata_set_argument(pMetadataArgument, &key, &value);
+            } else {
+                isValid = parse_metadata_key_only_argument(pMetadataArgument, &key);
+            }
+
+            if (!isValid) {
+                fs_file_writef(STDERR, "Invalid %s metadata argument: %s.\n", argv[argumentIndex], pMetadataArgument);
+                return 1;
+            }
+        }
+
+        if (metadata_arguments_have_duplicate_keys(metadataArgumentCount, argv + argumentIndex + 2, hasValues)) {
+            fs_file_writef(STDERR, "The %s command contains a duplicate metadata key.\n", argv[argumentIndex]);
             return 1;
         }
 
