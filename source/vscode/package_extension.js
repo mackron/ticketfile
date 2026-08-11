@@ -61,6 +61,7 @@ function main() {
 
         fs.copyFileSync(path.join(extensionDirectory, ".vscodeignore"), path.join(temporaryDirectory, ".vscodeignore"));
         fs.copyFileSync(path.join(extensionDirectory, "extension.js"), path.join(temporaryDirectory, "extension.js"));
+        fs.copyFileSync(path.join(extensionDirectory, "README.md"), path.join(temporaryDirectory, "README.md"));
         fs.copyFileSync(path.join(extensionDirectory, "ticket_parser.js"), path.join(temporaryDirectory, "ticket_parser.js"));
         fs.copyFileSync(path.join(repositoryDirectory, "LICENSE"), path.join(temporaryDirectory, "LICENSE"));
         copyDirectory(path.join(extensionDirectory, "resources"), path.join(temporaryDirectory, "resources"));
