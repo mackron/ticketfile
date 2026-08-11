@@ -1,4 +1,4 @@
-This repository contains tools for working with tickets in human editable plain text files. It includes a VS Code extension for humans, and a CLI which is mostly useful by clankers. Humans would typically just edit ticket files in a plain text editor or through the VS Code extension.
+This repository contains tools for working with tickets in human editable plain text files. It includes a VS Code extension for humans, and a CLI which is mostly useful for clankers. Humans would typically just edit ticket files in a normal text editor or through the VS Code extension.
 
 Tickets go into a sub-folder (defaults to "tickets"), with each one named with the ticket's numeric ID. See the "tickets" folder in this repository for an example. Tickets are simple and plain text, with optional metadata at the top. Below is a typical example of what I use in my projects:
 
