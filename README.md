@@ -61,6 +61,25 @@ The command creates `ticketfile-<version>.vsix` in `build/vscode`. It reads the 
 Update the three macros in `source/ticketfile_version.h` for a release. CMake, the CLI, and the extension packaging script all use this version. The packaging script also updates the version stored in `source/vscode/package.json`.
 
 
+## Releasing
+
+Update the version macros in `source/ticketfile_version.h`, commit the change,
+and push `master`. Then run:
+
+```
+node release.js
+```
+
+The script requires a clean working tree and a local `master` that matches
+`origin/master`. It downloads current tags, confirms that the header version is
+newer than all existing release tags, and asks for confirmation. It then creates
+and pushes an annotated `v<major>.<minor>.<patch>` tag. The tag starts GitHub
+release automation.
+
+Use `node release.js --check` to validate the release without creating a tag.
+Use `node release.js --yes` to skip the confirmation prompt.
+
+
 ## License
 
 Your choice of either public domain or [MIT No Attribution](https://github.com/aws/mit-0).
