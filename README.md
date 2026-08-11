@@ -45,6 +45,22 @@ This was caused by incorrect tab ordering in the login form.
 See [Ticket 0](tickets/0) for an example and a more complete description on the (optional) formatting supported by the tools in this repository.
 
 
+## Installing
+
+Download the archive for your operating system from the GitHub Releases page.
+Extract `ticket` (`ticket.exe` on Windows), and put it in a directory listed in
+your `PATH`.
+
+To install the VS Code extension, download the `.vsix` file from the same
+release. In VS Code, open the Extensions view, select **Views and More
+Actions**, and then select **Install from VSIX**. You can also install it from a
+terminal:
+
+```
+code --install-extension ticketfile-<version>.vsix
+```
+
+
 ## Building
 
 For the CLI, just compile source/cli/ticketfile.c or use CMake. The VS Code extension is in source/vscode.
