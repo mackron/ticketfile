@@ -89,7 +89,7 @@ CLI:
 - [x] Validate empty keys, empty values, duplicate keys, and malformed arguments.
 - [x] Split "set" arguments at the first colon.
 - [x] Read one metadata value with "get".
-- [ ] Set one or more metadata items in one atomic update.
+- [x] Set one or more metadata items in one atomic update.
 - [ ] Clear one or more metadata items in one atomic update.
 - [ ] Preserve existing metadata formatting and ticket descriptions during updates.
 - [ ] Add status history messages when an existing status changes.
