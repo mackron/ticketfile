@@ -90,7 +90,7 @@ CLI:
 - [x] Split "set" arguments at the first colon.
 - [x] Read one metadata value with "get".
 - [x] Set one or more metadata items in one atomic update.
-- [ ] Clear one or more metadata items in one atomic update.
+- [x] Clear one or more metadata items in one atomic update.
 - [ ] Preserve existing metadata formatting and ticket descriptions during updates.
 - [ ] Add status history messages when an existing status changes.
 - [ ] Support "--no-comment" for "set" and "clear".

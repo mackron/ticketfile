@@ -367,8 +367,10 @@ static char* replace_text_range(const char* pText, size_t textLength, text_range
     memcpy(pWriteCursor, pText, prefixLength);
     pWriteCursor += prefixLength;
 
-    memcpy(pWriteCursor, pReplacement, replacementLength);
-    pWriteCursor += replacementLength;
+    if (replacementLength > 0) {
+        memcpy(pWriteCursor, pReplacement, replacementLength);
+        pWriteCursor += replacementLength;
+    }
 
     memcpy(pWriteCursor, pText + suffixOffset, suffixLength);
 
@@ -1455,6 +1457,109 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
     return 0;
 }
 
+static text_range metadata_line_range(const char* pText, size_t textLength, const ticket_metadata* pMetadata)
+{
+    text_range line;
+    size_t lineEnd = pMetadata->value.offset + pMetadata->value.length;
+
+    line.offset = pMetadata->key.offset;
+    while (line.offset > 0 && pText[line.offset - 1] != '\n') {
+        line.offset -= 1;
+    }
+
+    while (lineEnd < textLength && pText[lineEnd] != '\n') {
+        lineEnd += 1;
+    }
+    if (lineEnd < textLength) {
+        lineEnd += 1;
+    }
+
+    line.length = lineEnd - line.offset;
+    return line;
+}
+
+static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArguments, int addComment)
+{
+    fs_result result;
+    char* pFilePath;
+    char* pFileData;
+    size_t fileDataSize;
+    int argumentIndex;
+    int changed = 0;
+
+    (void)addComment;
+
+    if (!is_ticket_id(id)) {
+        fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
+        return 1;
+    }
+
+    pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+    if (pFilePath == NULL) {
+        fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+        return 1;
+    }
+
+    result = read_text_file(pFilePath, &pFileData, &fileDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    for (argumentIndex = 0; argumentIndex < argumentCount; argumentIndex += 1) {
+        const char* pArgument = ppArguments[argumentIndex];
+        text_range key;
+        int found;
+
+        parse_metadata_key_only_argument(pArgument, &key);
+
+        do {
+            ticket parsedTicket;
+            size_t metadataIndex;
+
+            found = 0;
+            if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+                fs_file_writef(STDERR, "Failed to parse %s.\n", pFilePath);
+                return 1;
+            }
+
+            for (metadataIndex = parsedTicket.metadataCount; metadataIndex > 0; metadataIndex -= 1) {
+                const ticket_metadata* pMetadata = &parsedTicket.pMetadata[metadataIndex - 1];
+
+                if (text_range_equal(pFileData, pMetadata->key, pArgument, key)) {
+                    text_range line = metadata_line_range(pFileData, fileDataSize, pMetadata);
+                    char* pUpdatedData;
+                    size_t updatedDataSize;
+
+                    pUpdatedData = replace_text_range(pFileData, fileDataSize, line, NULL, 0, &updatedDataSize);
+                    if (pUpdatedData == NULL) {
+                        fs_file_writef(STDERR, "Failed to allocate updated ticket data.\n");
+                        return 1;
+                    }
+
+                    pFileData = pUpdatedData;
+                    fileDataSize = updatedDataSize;
+                    changed = 1;
+                    found = 1;
+                    break;
+                }
+            }
+        } while (found);
+    }
+
+    if (!changed) {
+        return 0;
+    }
+
+    result = replace_text_file(pFilePath, pFileData, fileDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to update %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    return 0;
+}
+
 static int update_ticket_status(const char* id, const char* pStatus, int addComment)
 {
     fs_result result;
@@ -1883,8 +1988,11 @@ int main(int argc, char** argv)
                 addComment);
         }
 
-        fs_file_writef(STDERR, "The clear command is not implemented.\n");
-        return 1;
+        return clear_ticket_metadata(
+            argv[argumentIndex + 1],
+            metadataArgumentCount,
+            argv + argumentIndex + 2,
+            addComment);
     }
 
     if (strcmp(argv[argumentIndex], "close") == 0 || strcmp(argv[argumentIndex], "reopen") == 0) {
