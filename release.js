@@ -157,18 +157,24 @@ async function main()
     const arguments = process.argv.slice(2);
     const checkOnly = arguments.length === 1 && arguments[0] === "--check";
     const skipConfirmation = arguments.length === 1 && arguments[0] === "--yes";
+    const printVersion = arguments.length === 1 && arguments[0] === "--print-version";
 
     if (arguments.length === 1 && (arguments[0] === "-h" || arguments[0] === "--help")) {
         printUsage();
         return;
     }
 
-    if (arguments.length > 1 || (arguments.length === 1 && !checkOnly && !skipConfirmation)) {
+    if (arguments.length > 1 || (arguments.length === 1 && !checkOnly && !skipConfirmation && !printVersion)) {
         printUsage();
         throw new Error("Invalid command-line options.");
     }
 
     const version = readVersion();
+    if (printVersion) {
+        console.log(formatVersion(version));
+        return;
+    }
+
     const tag = validateRelease(version);
 
     console.log("Release state is valid for " + tag + ".");

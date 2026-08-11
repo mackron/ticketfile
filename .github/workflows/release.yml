@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Read version
+        id: version
+        run: echo "version=$(node release.js --print-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag
+        run: test "v${{ steps.version.outputs.version }}" = "$GITHUB_REF_NAME"
+
+  cli:
+    name: CLI ${{ matrix.platform }}
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-latest
+            executable: build/cli/release/ticket
+            output: ticket
+          - platform: windows
+            runner: windows-latest
+            executable: build/cli/release/Release/ticket.exe
+            output: ticket.exe
+          - platform: macos
+            runner: macos-latest
+            executable: build/cli/release/ticket
+            output: ticket
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure tests
+        run: cmake -S . -B build/cli/test -DBUILD_TESTING=ON
+
+      - name: Build tests
+        run: cmake --build build/cli/test --config Release
+
+      - name: Test
+        run: ctest --test-dir build/cli/test --build-config Release --output-on-failure
+
+      - name: Configure release
+        run: cmake -S . -B build/cli/release -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build release
+        run: cmake --build build/cli/release --config Release
+
+      - name: Prepare package
+        run: |
+          cmake -E make_directory build/package-cli
+          cmake -E make_directory build/packages
+          cmake -E copy ${{ matrix.executable }} build/package-cli/${{ matrix.output }}
+
+      - name: Create ZIP package
+        if: runner.os == 'Windows'
+        working-directory: build/package-cli
+        run: cmake -E tar cf ../packages/ticketfile-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.zip --format=zip -- ${{ matrix.output }}
+
+      - name: Create tar package
+        if: runner.os != 'Windows'
+        working-directory: build/package-cli
+        run: cmake -E tar czf ../packages/ticketfile-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.tar.gz --format=gnutar -- ${{ matrix.output }}
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-cli-${{ matrix.platform }}
+          path: build/packages/*
+          if-no-files-found: error
+
+  extension:
+    name: VS Code extension
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Test
+        run: npm test
+        working-directory: source/vscode
+
+      - name: Package
+        run: npm run package
+        working-directory: source/vscode
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-vscode
+          path: build/vscode/ticketfile-${{ needs.validate.outputs.version }}.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - validate
+      - cli
+      - extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: build/release-assets
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" build/release-assets/* --verify-tag --generate-notes --title "Ticketfile ${{ needs.validate.outputs.version }}"
