@@ -1868,6 +1868,111 @@ static int run_parser_test(const char* pCaseName)
         pExpected[expectedSize - 1] == '\n');
 }
 
+static int run_metadata_command_test(const char* pCaseName)
+{
+    char* pCommandPath = get_test_path(pCaseName, "command.txt");
+    char* pTicketPath = get_test_path(pCaseName, "ticket");
+    char* pExpectedPath = get_test_path(pCaseName, "expected.txt");
+    char* pCommandData;
+    char* pTicketData;
+    char* pExpectedData;
+    size_t commandDataSize;
+    size_t ticketDataSize;
+    size_t expectedDataSize;
+    char* ppArguments[32];
+    int argumentCount = 0;
+    size_t cursor = 0;
+    char temporaryPath[1024];
+    const char* pPreviousTicketsFolder;
+    char* pTemporaryTicketPath;
+    char* pActualData;
+    size_t actualDataSize;
+    int addComment = 1;
+    int result;
+    int passed;
+
+    if (pCommandPath == NULL || pTicketPath == NULL || pExpectedPath == NULL ||
+        read_text_file(pCommandPath,  &pCommandData,  &commandDataSize ) != FS_SUCCESS ||
+        read_text_file(pTicketPath,   &pTicketData,   &ticketDataSize  ) != FS_SUCCESS ||
+        read_text_file(pExpectedPath, &pExpectedData, &expectedDataSize) != FS_SUCCESS) {
+        return 0;
+    }
+
+    while (cursor < commandDataSize) {
+        size_t lineStart = cursor;
+
+        while (cursor < commandDataSize && pCommandData[cursor] != '\n' && pCommandData[cursor] != '\r') {
+            cursor += 1;
+        }
+
+        if (cursor > lineStart) {
+            if (argumentCount == (int)(sizeof(ppArguments) / sizeof(ppArguments[0]))) {
+                return 0;
+            }
+
+            ppArguments[argumentCount] = pCommandData + lineStart;
+            argumentCount += 1;
+        }
+
+        while (cursor < commandDataSize && (pCommandData[cursor] == '\n' || pCommandData[cursor] == '\r')) {
+            pCommandData[cursor] = '\0';
+            cursor += 1;
+        }
+    }
+
+    if (argumentCount < 2 || fs_mktmp("ticketfile-test", temporaryPath, sizeof(temporaryPath), FS_MKTMP_DIR) != FS_SUCCESS) {
+        return 0;
+    }
+
+    if (strcmp(ppArguments[argumentCount - 1], "--no-comment") == 0) {
+        addComment = 0;
+        argumentCount -= 1;
+    }
+
+    pPreviousTicketsFolder = g_pTicketsFolder;
+    g_pTicketsFolder = temporaryPath;
+
+    pTemporaryTicketPath = get_ticket_path("1", 1);
+    if (pTemporaryTicketPath == NULL || write_text_file(pTemporaryTicketPath, pTicketData, ticketDataSize) != FS_SUCCESS) {
+        g_pTicketsFolder = pPreviousTicketsFolder;
+        return 0;
+    }
+
+    if (strcmp(ppArguments[0], "set") == 0) {
+        result = set_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment);
+    } else if (strcmp(ppArguments[0], "clear") == 0) {
+        result = clear_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment);
+    } else {
+        result = 1;
+    }
+
+    passed = (result == 0 && read_text_file(pTemporaryTicketPath, &pActualData, &actualDataSize) == FS_SUCCESS && actualDataSize == expectedDataSize && memcmp(pActualData, pExpectedData, expectedDataSize) == 0);
+    fs_remove(NULL, pTemporaryTicketPath, 0);
+    fs_remove(NULL, temporaryPath, 0);
+    g_pTicketsFolder = pPreviousTicketsFolder;
+
+    return passed;
+}
+
+static int run_test_case(const char* pCaseName)
+{
+    char* pCommandPath = get_test_path(pCaseName, "command.txt");
+    fs_file* pCommandFile;
+    fs_result result;
+
+    if (pCommandPath == NULL) {
+        return 0;
+    }
+
+    result = fs_file_open(NULL, pCommandPath, FS_READ, &pCommandFile);
+    if (result == FS_SUCCESS) {
+        fs_file_close(pCommandFile);
+        return run_metadata_command_test(pCaseName);
+    }
+
+    return run_parser_test(pCaseName);
+}
+
 static int run_tests(const char* pFilter)
 {
     fs_iterator* pIterator;
@@ -1924,7 +2029,7 @@ static int run_tests(const char* pFilter)
         }
 
         selectedCount += 1;
-        passed = run_parser_test(ppCaseNames[i]);
+        passed = run_test_case(ppCaseNames[i]);
         if (passed) {
             passedCount += 1;
         }

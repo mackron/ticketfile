@@ -96,7 +96,7 @@ CLI:
 - [x] Support "--no-comment" for "set" and "clear".
 - [x] Make unchanged status updates succeed without changing the ticket.
 - [x] Keep "close" and "reopen" as undocumented compatibility aliases.
-- [ ] Add tests for missing, new, replaced, and removed metadata.
+- [x] Add tests for missing, new, replaced, and removed metadata.
 - [ ] Add tests for multiple metadata changes and atomic failure.
 - [ ] Add tests for invalid and duplicate metadata arguments.
 - [ ] Add tests for spaces and additional colons in values.

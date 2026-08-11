@@ -1,0 +1,6 @@
+status: open
+priority: high
+
+---
+
+Replaced metadata test.
