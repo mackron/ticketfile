@@ -1,5 +1,6 @@
 const childProcess = require("child_process");
 const fs = require("fs");
+const https = require("https");
 const path = require("path");
 const readline = require("readline");
 
@@ -91,6 +92,87 @@ function runGit(arguments, allowFailure)
     return result;
 }
 
+function getGitHubRepository()
+{
+    const remote = runGit(["remote", "get-url", "origin"], false).stdout.trim();
+    const match = /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([^/]+)\/([^/]+?)(?:\.git)?$/i.exec(remote);
+
+    if (match === null) {
+        throw new Error("Origin is not a supported GitHub repository URL: " + remote);
+    }
+
+    return match[1] + "/" + match[2];
+}
+
+function requestGitHub(pathName)
+{
+    return new Promise((resolve, reject) => {
+        const headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "ticketfile-release",
+            "X-GitHub-Api-Version": "2022-11-28"
+        };
+
+        if (process.env.GITHUB_TOKEN) {
+            headers.Authorization = "Bearer " + process.env.GITHUB_TOKEN;
+        }
+
+        const request = https.get({
+            hostname: "api.github.com",
+            path: pathName,
+            headers
+        }, (response) => {
+            let responseText = "";
+
+            response.setEncoding("utf8");
+            response.on("data", (chunk) => {
+                responseText += chunk;
+            });
+            response.on("end", () => {
+                let responseData;
+
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (error) {
+                    reject(new Error("GitHub returned an invalid response."));
+                    return;
+                }
+
+                if (response.statusCode < 200 || response.statusCode >= 300) {
+                    reject(new Error("GitHub API request failed: " +
+                        (responseData.message || "HTTP " + response.statusCode) + "."));
+                    return;
+                }
+
+                resolve(responseData);
+            });
+        });
+
+        request.on("error", reject);
+    });
+}
+
+async function validateContinuousIntegration(head)
+{
+    const repository = getGitHubRepository();
+    const requestPath = "/repos/" + repository + "/actions/workflows/build.yml/runs?head_sha=" + encodeURIComponent(head) + "&event=push&per_page=10";
+    const response = await requestGitHub(requestPath);
+    const runs = response.workflow_runs;
+
+    if (!Array.isArray(runs) || runs.length === 0) {
+        throw new Error("No Build workflow run exists for commit " + head + ".");
+    }
+
+    const run = runs[0];
+    if (run.status !== "completed") {
+        throw new Error("Build workflow is not complete for commit " + head + ". Status: " + run.status + ".\n" + run.html_url);
+    }
+
+    if (run.conclusion !== "success") {
+        throw new Error("Build workflow did not succeed for commit " + head + ". Conclusion: " + run.conclusion + ".\n" + run.html_url);
+    }
+}
+
 function validateRelease(version)
 {
     const versionText = formatVersion(version);
@@ -137,7 +219,7 @@ function validateRelease(version)
         throw new Error("Tag " + tag + " already exists. Update " + versionHeaderPath + ".");
     }
 
-    return tag;
+    return { tag, head };
 }
 
 function confirmRelease(tag)
@@ -175,7 +257,10 @@ async function main()
         return;
     }
 
-    const tag = validateRelease(version);
+    const release = validateRelease(version);
+    const tag = release.tag;
+
+    await validateContinuousIntegration(release.head);
 
     console.log("Release state is valid for " + tag + ".");
     if (checkOnly) {

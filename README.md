@@ -87,10 +87,14 @@ node release.js
 ```
 
 The script requires a clean working tree and a local `master` that matches
-`origin/master`. It downloads current tags, confirms that the header version is
-newer than all existing release tags, and asks for confirmation. It then creates
-and pushes an annotated `v<major>.<minor>.<patch>` tag. The tag starts GitHub
-release automation.
+`origin/master`. It downloads current tags and requires a successful GitHub
+Build workflow for the current commit. It then confirms that the header version
+is newer than all existing release tags and asks for confirmation. Finally, it
+creates and pushes an annotated `v<major>.<minor>.<patch>` tag. The tag starts
+GitHub release automation.
+
+The CI check uses the GitHub API. Set `GITHUB_TOKEN` if API authentication is
+required or if the unauthenticated API rate limit is too low.
 
 Use `node release.js --check` to validate the release without creating a tag.
 Use `node release.js --yes` to skip the confirmation prompt.
