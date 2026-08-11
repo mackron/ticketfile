@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Configure tests
         run: cmake -S . -B build/cli/test -DBUILD_TESTING=ON
