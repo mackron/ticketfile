@@ -13,7 +13,7 @@ Recognized statuses include the following:
     open
     closed
 
-Updates and comments from users can be appended to the end, separated by "---"
+Updates and comments from users can be appended to the end, separated by "---".
 
 This ticket should be considered the format specification.
 
