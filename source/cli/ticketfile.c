@@ -1318,6 +1318,7 @@ static int update_ticket_status(const char* id, const char* pStatus, int addComm
 }
 
 
+#if defined(TICKETFILE_ENABLE_TESTS)
 /* BEG testing */
 static char* get_test_path(const char* pCaseName, const char* pFileName)
 {
@@ -1487,6 +1488,7 @@ static int run_tests(const char* pFilter)
     return selectedCount > 0 && passedCount == selectedCount ? 0 : 1;
 }
 /* END testing */
+#endif
 
 
 int main(int argc, char** argv)
@@ -1615,6 +1617,7 @@ int main(int argc, char** argv)
         return comment_on_ticket(argv[argumentIndex + 1]);
     }
 
+#if defined(TICKETFILE_ENABLE_TESTS)
     if (strcmp(argv[argumentIndex], "--test") == 0) {
         if (argc > argumentIndex + 2) {
             fs_file_writef(STDERR, "The --test option takes no more than one case.\n");
@@ -1623,6 +1626,7 @@ int main(int argc, char** argv)
 
         return run_tests(argc == argumentIndex + 2 ? argv[argumentIndex + 1] : NULL);
     }
+#endif
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
         print_usage(argv[0]);

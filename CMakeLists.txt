@@ -39,6 +39,8 @@ set_target_properties(ticketfile PROPERTIES OUTPUT_NAME "ticket")
 # Tests
 include(CTest)
 if(BUILD_TESTING)
+    target_compile_definitions(ticketfile PRIVATE TICKETFILE_ENABLE_TESTS)
+
     add_test(NAME ticketfile_test COMMAND ticketfile --test)
     set_tests_properties(ticketfile_test PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -20,28 +20,34 @@ jobs:
           - name: Linux
             runner: ubuntu-latest
             artifact: ticket-linux
-            executable: build/ticket
+            executable: build-release/ticket
           - name: Windows
             runner: windows-latest
             artifact: ticket-windows
-            executable: build/Release/ticket.exe
+            executable: build-release/Release/ticket.exe
           - name: macOS
             runner: macos-latest
             artifact: ticket-macos
-            executable: build/ticket
+            executable: build-release/ticket
 
     steps:
       - name: Check out source
         uses: actions/checkout@v6
 
-      - name: Configure
-        run: cmake -S . -B build -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Configure tests
+        run: cmake -S . -B build-test -DBUILD_TESTING=ON
 
-      - name: Build
-        run: cmake --build build --config Release
+      - name: Build tests
+        run: cmake --build build-test --config Release
 
       - name: Test
-        run: ctest --test-dir build --build-config Release --output-on-failure
+        run: ctest --test-dir build-test --build-config Release --output-on-failure
+
+      - name: Configure release
+        run: cmake -S . -B build-release -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build release
+        run: cmake --build build-release --config Release
 
       - name: Upload CLI
         uses: actions/upload-artifact@v7
