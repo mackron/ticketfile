@@ -1429,8 +1429,6 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
     const char* pNewStatus = NULL;
     size_t newStatusLength = 0;
 
-    (void)addComment;
-
     if (!is_ticket_id(id)) {
         fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
         return 1;
@@ -1513,7 +1511,7 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
         fileDataSize = updatedDataSize;
     }
 
-    if (pOldStatus != NULL) {
+    if (pOldStatus != NULL && addComment) {
         char* pUpdatedData;
         size_t updatedDataSize;
 

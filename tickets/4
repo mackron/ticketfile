@@ -93,7 +93,7 @@ CLI:
 - [x] Clear one or more metadata items in one atomic update.
 - [x] Preserve existing metadata formatting and ticket descriptions during updates.
 - [x] Add status history messages when an existing status changes.
-- [ ] Support "--no-comment" for "set" and "clear".
+- [x] Support "--no-comment" for "set" and "clear".
 - [ ] Make unchanged status updates succeed without changing the ticket.
 - [ ] Keep "close" and "reopen" as undocumented compatibility aliases.
 - [ ] Add tests for missing, new, replaced, and removed metadata.
