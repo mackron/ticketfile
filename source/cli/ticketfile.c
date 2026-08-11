@@ -1428,6 +1428,7 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
     size_t oldStatusLength = 0;
     const char* pNewStatus = NULL;
     size_t newStatusLength = 0;
+    int changed = 0;
 
     if (!is_ticket_id(id)) {
         fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
@@ -1472,7 +1473,11 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
         }
 
         if (pExistingMetadata != NULL) {
-            if (text_range_equal_string(pArgument, key, "status") && !text_range_equal(pFileData, pExistingMetadata->value, pArgument, value)) {
+            if (text_range_equal(pFileData, pExistingMetadata->value, pArgument, value)) {
+                continue;
+            }
+
+            if (text_range_equal_string(pArgument, key, "status")) {
                 pOldStatus = pFileData + pExistingMetadata->value.offset;
                 oldStatusLength = pExistingMetadata->value.length;
                 pNewStatus = pArgument + value.offset;
@@ -1509,6 +1514,11 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
 
         pFileData = pUpdatedData;
         fileDataSize = updatedDataSize;
+        changed = 1;
+    }
+
+    if (!changed) {
+        return 0;
     }
 
     if (pOldStatus != NULL && addComment) {

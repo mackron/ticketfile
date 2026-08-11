@@ -94,7 +94,7 @@ CLI:
 - [x] Preserve existing metadata formatting and ticket descriptions during updates.
 - [x] Add status history messages when an existing status changes.
 - [x] Support "--no-comment" for "set" and "clear".
-- [ ] Make unchanged status updates succeed without changing the ticket.
+- [x] Make unchanged status updates succeed without changing the ticket.
 - [ ] Keep "close" and "reopen" as undocumented compatibility aliases.
 - [ ] Add tests for missing, new, replaced, and removed metadata.
 - [ ] Add tests for multiple metadata changes and atomic failure.
