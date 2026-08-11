@@ -82,6 +82,15 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "    edit <id>\n");
     fs_file_writef(STDOUT, "        Open the ticket in VISUAL, EDITOR, or the default editor.\n");
     fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    get <id> <key>\n");
+    fs_file_writef(STDOUT, "        Write one metadata value to standard output.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    set <id> <key:value> [<key:value> ...] [--no-comment]\n");
+    fs_file_writef(STDOUT, "        Set one or more metadata values.\n");
+    fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    clear <id> <key> [<key> ...] [--no-comment]\n");
+    fs_file_writef(STDOUT, "        Remove one or more metadata values.\n");
+    fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    close <id> [--no-comment]\n");
     fs_file_writef(STDOUT, "        Set status to closed and append a dated history entry.\n");
     fs_file_writef(STDOUT, "\n");
@@ -1605,6 +1614,36 @@ int main(int argc, char** argv)
         }
 
         return edit_ticket(argv[argumentIndex + 1]);
+    }
+
+    if (strcmp(argv[argumentIndex], "get") == 0) {
+        if (argc != argumentIndex + 3) {
+            fs_file_writef(STDERR, "The get command requires one ticket ID and one metadata key.\n");
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        fs_file_writef(STDERR, "The get command is not implemented.\n");
+        return 1;
+    }
+
+    if (strcmp(argv[argumentIndex], "set") == 0 || strcmp(argv[argumentIndex], "clear") == 0) {
+        int metadataArgumentCount;
+        int addComment = 1;
+
+        if (argc > argumentIndex + 1 && strcmp(argv[argc - 1], "--no-comment") == 0) {
+            addComment = 0;
+        }
+
+        metadataArgumentCount = argc - argumentIndex - 2 - (addComment ? 0 : 1);
+        if (metadataArgumentCount < 1) {
+            fs_file_writef(STDERR, "The %s command requires one ticket ID and at least one metadata argument.\n", argv[argumentIndex]);
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        fs_file_writef(STDERR, "The %s command is not implemented.\n", argv[argumentIndex]);
+        return 1;
     }
 
     if (strcmp(argv[argumentIndex], "close") == 0 || strcmp(argv[argumentIndex], "reopen") == 0) {

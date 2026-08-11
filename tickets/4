@@ -85,7 +85,7 @@ Development Checklist:
 
 CLI:
 
-- [ ] Add argument parsing for "get", "set", and "clear".
+- [x] Add argument parsing for "get", "set", and "clear".
 - [ ] Validate empty keys, empty values, duplicate keys, and malformed arguments.
 - [ ] Split "set" arguments at the first colon.
 - [ ] Read one metadata value with "get".
