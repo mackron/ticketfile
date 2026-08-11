@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+            artifact: ticket-linux
+            executable: build/ticket
+          - name: Windows
+            runner: windows-latest
+            artifact: ticket-windows
+            executable: build/Release/ticket.exe
+          - name: macOS
+            runner: macos-latest
+            artifact: ticket-macos
+            executable: build/ticket
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Configure
+        run: cmake -S . -B build -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+      - name: Upload CLI
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.executable }}
+          if-no-files-found: error
