@@ -1363,6 +1363,60 @@ static int comment_on_ticket(const char* id)
     return 0;
 }
 
+static char* append_status_change_comment(const char* pFileData, size_t fileDataSize, const char* pOldStatus, size_t oldStatusLength, const char* pNewStatus, size_t newStatusLength, size_t* pUpdatedDataSize)
+{
+    const char* pSeparator;
+    size_t separatorLength;
+    const char* pMessagePrefix = "Status changed from ";
+    size_t messagePrefixLength = strlen(pMessagePrefix);
+    const char* pMessageMiddle = " to ";
+    size_t messageMiddleLength = strlen(pMessageMiddle);
+    char* pCommentHeader;
+    size_t commentHeaderLength;
+    int authorFound;
+    char* pUpdatedData;
+    char* pWriteCursor;
+
+    pCommentHeader = create_comment_header(&commentHeaderLength, &authorFound);
+    if (pCommentHeader == NULL) {
+        return NULL;
+    }
+
+    if (!authorFound) {
+        fs_file_writef(STDERR, "Warning: No author name was found for status comment.\n");
+    }
+
+    pSeparator = fileDataSize > 0 && pFileData[fileDataSize - 1] == '\n' ? "\n---\n\n" : "\n\n---\n\n";
+    separatorLength = strlen(pSeparator);
+    *pUpdatedDataSize = fileDataSize + separatorLength + commentHeaderLength + 2 +
+        messagePrefixLength + oldStatusLength + messageMiddleLength + newStatusLength + 2;
+    pUpdatedData = (char*)malloc(*pUpdatedDataSize);
+    if (pUpdatedData == NULL) {
+        return NULL;
+    }
+
+    pWriteCursor = pUpdatedData;
+    memcpy(pWriteCursor, pFileData, fileDataSize);
+    pWriteCursor += fileDataSize;
+    memcpy(pWriteCursor, pSeparator, separatorLength);
+    pWriteCursor += separatorLength;
+    memcpy(pWriteCursor, pCommentHeader, commentHeaderLength);
+    pWriteCursor += commentHeaderLength;
+    memcpy(pWriteCursor, "\n\n", 2);
+    pWriteCursor += 2;
+    memcpy(pWriteCursor, pMessagePrefix, messagePrefixLength);
+    pWriteCursor += messagePrefixLength;
+    memcpy(pWriteCursor, pOldStatus, oldStatusLength);
+    pWriteCursor += oldStatusLength;
+    memcpy(pWriteCursor, pMessageMiddle, messageMiddleLength);
+    pWriteCursor += messageMiddleLength;
+    memcpy(pWriteCursor, pNewStatus, newStatusLength);
+    pWriteCursor += newStatusLength;
+    memcpy(pWriteCursor, ".\n", 2);
+
+    return pUpdatedData;
+}
+
 static int set_ticket_metadata(const char* id, int argumentCount, char** ppArguments, int addComment)
 {
     fs_result result;
@@ -1370,6 +1424,10 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
     char* pFileData;
     size_t fileDataSize;
     int argumentIndex;
+    const char* pOldStatus = NULL;
+    size_t oldStatusLength = 0;
+    const char* pNewStatus = NULL;
+    size_t newStatusLength = 0;
 
     (void)addComment;
 
@@ -1416,6 +1474,13 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
         }
 
         if (pExistingMetadata != NULL) {
+            if (text_range_equal_string(pArgument, key, "status") && !text_range_equal(pFileData, pExistingMetadata->value, pArgument, value)) {
+                pOldStatus = pFileData + pExistingMetadata->value.offset;
+                oldStatusLength = pExistingMetadata->value.length;
+                pNewStatus = pArgument + value.offset;
+                newStatusLength = value.length;
+            }
+
             pUpdatedData = replace_text_range(pFileData, fileDataSize, pExistingMetadata->value, pArgument + value.offset, value.length, &updatedDataSize);
         } else {
             const char* pSuffix = parsedTicket.hasMetadataSection ? "\n" : "\n\n---\n\n";
@@ -1441,6 +1506,20 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
 
         if (pUpdatedData == NULL) {
             fs_file_writef(STDERR, "Failed to allocate updated ticket data.\n");
+            return 1;
+        }
+
+        pFileData = pUpdatedData;
+        fileDataSize = updatedDataSize;
+    }
+
+    if (pOldStatus != NULL) {
+        char* pUpdatedData;
+        size_t updatedDataSize;
+
+        pUpdatedData = append_status_change_comment(pFileData, fileDataSize, pOldStatus, oldStatusLength, pNewStatus, newStatusLength, &updatedDataSize);
+        if (pUpdatedData == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate status comment data.\n");
             return 1;
         }
 

@@ -91,8 +91,8 @@ CLI:
 - [x] Read one metadata value with "get".
 - [x] Set one or more metadata items in one atomic update.
 - [x] Clear one or more metadata items in one atomic update.
-- [ ] Preserve existing metadata formatting and ticket descriptions during updates.
-- [ ] Add status history messages when an existing status changes.
+- [x] Preserve existing metadata formatting and ticket descriptions during updates.
+- [x] Add status history messages when an existing status changes.
 - [ ] Support "--no-comment" for "set" and "clear".
 - [ ] Make unchanged status updates succeed without changing the ticket.
 - [ ] Keep "close" and "reopen" as undocumented compatibility aliases.
