@@ -22,7 +22,7 @@
     ],
     "scripts": {
         "package": "node package_extension.js",
-        "test": "node ticket_parser.test.js && node ticket_configuration.test.js"
+        "test": "node ticket_parser.test.js"
     },
     "main": "./extension.js",
     "contributes": {

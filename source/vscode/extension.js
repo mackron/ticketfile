@@ -1,7 +1,73 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
-const { createStatusGroupDefinitions, isConfiguredStatus, loadStatusGroups } = require("./ticket_configuration");
 const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
+
+const defaultStatusGroups = [
+    { label: "Open", status: "open", expanded: true },
+    { label: "Closed", status: "closed", expanded: false }
+];
+
+function validateStatusGroups(groups)
+{
+    const statuses = new Set();
+
+    if (!Array.isArray(groups)) {
+        return "Ticket status groups must be an array.";
+    }
+
+    for (let index = 0; index < groups.length; index += 1) {
+        const group = groups[index];
+        const groupName = `Ticket status group ${index + 1}`;
+
+        if (group === null || typeof group !== "object" || Array.isArray(group)) {
+            return `${groupName} must be an object.`;
+        }
+        if (typeof group.label !== "string" || group.label.trim() === "") {
+            return `${groupName} must have a non-empty label.`;
+        }
+        if (typeof group.status !== "string" || group.status.trim() === "") {
+            return `${groupName} must have a non-empty status.`;
+        }
+        if (typeof group.expanded !== "boolean") {
+            return `${groupName} must have a Boolean expanded value.`;
+        }
+        if (statuses.has(group.status)) {
+            return `Ticket status groups contain duplicate status: ${group.status}.`;
+        }
+
+        statuses.add(group.status);
+    }
+
+    return undefined;
+}
+
+function loadStatusGroups(configuration)
+{
+    const inspected = configuration.inspect("statusGroups");
+    let groups;
+
+    if (inspected !== undefined && inspected.workspaceValue !== undefined) {
+        groups = inspected.workspaceValue;
+    } else if (inspected !== undefined && inspected.globalValue !== undefined) {
+        groups = inspected.globalValue;
+    } else if (inspected !== undefined && inspected.defaultValue !== undefined) {
+        groups = inspected.defaultValue;
+    } else {
+        groups = defaultStatusGroups;
+    }
+
+    const error = validateStatusGroups(groups);
+
+    return {
+        error,
+        groups: error === undefined ? groups.map((group) => ({ ...group })) : defaultStatusGroups.map((group) => ({ ...group }))
+    };
+}
+
+function isConfiguredStatus(status, groups)
+{
+    return groups.some((group) => group.status === status);
+}
 
 function getTicketsFolderPath()
 {
@@ -149,7 +215,6 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
 
         const fileData = await vscode.workspace.fs.readFile(ticketItem.resourceUri);
         const text = Buffer.from(fileData).toString("utf8");
-        const parsedTicket = parseTicket(text);
         const statusRange = findStatusRange(text);
         const oldStatus = statusRange === undefined ? undefined : text.substring(statusRange.offset, statusRange.offset + statusRange.length);
 
@@ -157,28 +222,23 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
             return;
         }
 
-        let updatedStatusText;
+        let updatedText;
 
         if (statusRange !== undefined) {
-            updatedStatusText = text.substring(0, statusRange.offset) +
-                status +
-                text.substring(statusRange.offset + statusRange.length);
-        } else if (parsedTicket.hasMetadataSection) {
-            updatedStatusText = `status: ${status}\n${text}`;
+            updatedText = text.substring(0, statusRange.offset) + status + text.substring(statusRange.offset + statusRange.length);
+        } else if (parseTicket(text).hasMetadataSection) {
+            updatedText = `status: ${status}\n${text}`;
         } else {
-            updatedStatusText = `status: ${status}\n\n---\n\n${text}`;
+            updatedText = `status: ${status}\n\n---\n\n${text}`;
         }
 
-        let updatedText = updatedStatusText;
         let author;
 
         if (oldStatus !== undefined) {
             author = await getCommentAuthor();
+            const separator = updatedText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
 
-            const separator = updatedStatusText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
-            const historyEntry = `${separator}${getCurrentDate()} - ${author}\n\nStatus changed from ${oldStatus} to ${status}.\n`;
-
-            updatedText += historyEntry;
+            updatedText += `${separator}${getCurrentDate()} - ${author}\n\nStatus changed from ${oldStatus} to ${status}.\n`;
         }
 
         await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
@@ -370,7 +430,7 @@ class TicketProvider
     async getChildren(element)
     {
         if (element === undefined) {
-            const groups = createStatusGroupDefinitions(this.statusGroups).map((group) => new TicketGroup(
+            const groups = this.statusGroups.map((group) => new TicketGroup(
                 group.label,
                 group.status,
                 group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
