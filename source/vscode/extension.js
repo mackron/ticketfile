@@ -1,5 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
+const { validateStatusGroups } = require("./ticket_configuration");
 const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 function getTicketsFolderPath()
@@ -409,6 +410,13 @@ class TicketProvider
 
 function activate(context)
 {
+    const statusGroups = vscode.workspace.getConfiguration("ticketfile").get("statusGroups");
+    const statusGroupError = validateStatusGroups(statusGroups);
+
+    if (statusGroupError !== undefined) {
+        vscode.window.showErrorMessage(statusGroupError);
+    }
+
     const ticketProvider = new TicketProvider();
     const treeView = vscode.window.createTreeView("ticketfile.tickets", { treeDataProvider: ticketProvider });
 
