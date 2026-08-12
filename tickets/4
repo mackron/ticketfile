@@ -120,6 +120,6 @@ General:
 
 - [x] Document general metadata commands.
 - [x] Document status group settings, scopes, replacement behavior, and examples.
-- [ ] Remove Close and Reopen commands from user documentation.
-- [ ] Check all documentation for assumptions that only Open and Closed statuses exist.
+- [x] Remove Close and Reopen commands from user documentation.
+- [x] Check all documentation for assumptions that only Open and Closed statuses exist.
 - [ ] Run all CLI and VS Code tests.

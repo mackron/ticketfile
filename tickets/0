@@ -13,10 +13,7 @@ The name of the file should contain only the ticket number and nothing else. Thi
 ID of the ticket. A directory cannot contain two files with the same name, which prevents duplicate
 IDs in one tickets directory.
 
-Recognized statuses include the following:
-
-    open
-    closed
+Status values are not restricted. Tools can group or filter tickets by the exact status value.
 
 Updates and comments from users can be appended to the end, separated by "---".
 

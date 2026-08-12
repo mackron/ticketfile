@@ -7,7 +7,7 @@ tools.
 ## Features
 
 - View tickets in Open, Closed, and Uncategorized groups.
-- Create, open, close, reopen, comment on, and delete tickets.
+- Create, open, change status, comment on, and delete tickets.
 - Filter tickets by metadata such as `status:open`.
 - Refresh the view automatically when ticket files change.
 - Configure a ticket directory for each workspace.

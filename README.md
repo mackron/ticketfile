@@ -17,9 +17,9 @@ If the user hits tab from the username field, it puts keyboard focus on
 the "Login" button instead of the password field.
 ```
 
-The tools in this repository recognize the "status" metadata at the top and categorize it
-appropriately. The recognized statuses are "open" and "closed". Metadata is optional. A ticket
-could also look like this:
+The tools in this repository recognize the "status" metadata at the top. Status values are not
+restricted. The VS Code extension can map configured status values to groups. Metadata is optional.
+A ticket could also look like this:
 
 ```
 Possible null pointer dereference when loading a file.
