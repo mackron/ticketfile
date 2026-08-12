@@ -222,6 +222,37 @@ static int metadata_arguments_have_duplicate_keys(int argumentCount, char** ppAr
     return 0;
 }
 
+static int validate_metadata_arguments(const char* pCommand, int argumentCount, char** ppArguments)
+{
+    int hasValues = strcmp(pCommand, "set") == 0;
+    int argumentIndex;
+
+    for (argumentIndex = 0; argumentIndex < argumentCount; argumentIndex += 1) {
+        const char* pArgument = ppArguments[argumentIndex];
+        text_range key;
+        text_range value;
+        int isValid;
+
+        if (strcmp(pArgument, "--no-comment") == 0) {
+            fs_file_writef(STDERR, "The --no-comment option must be the final argument.\n");
+            return 0;
+        }
+
+        isValid = hasValues ? parse_metadata_set_argument(pArgument, &key, &value) : parse_metadata_key_only_argument(pArgument, &key);
+        if (!isValid) {
+            fs_file_writef(STDERR, "Invalid %s metadata argument: %s.\n", pCommand, pArgument);
+            return 0;
+        }
+    }
+
+    if (metadata_arguments_have_duplicate_keys(argumentCount, ppArguments, hasValues)) {
+        fs_file_writef(STDERR, "The %s command contains a duplicate metadata key.\n", pCommand);
+        return 0;
+    }
+
+    return 1;
+}
+
 static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 {
     size_t cursor = 0;
@@ -1888,6 +1919,7 @@ static int run_metadata_command_test(const char* pCaseName)
     char* pActualData;
     size_t actualDataSize;
     int addComment = 1;
+    int expectedSuccess = 1;
     int result;
     int passed;
 
@@ -1929,6 +1961,17 @@ static int run_metadata_command_test(const char* pCaseName)
         argumentCount -= 1;
     }
 
+    {
+        char* pResultPath = get_test_path(pCaseName, "result.txt");
+        char* pResultData;
+        size_t resultDataSize;
+
+        if (pResultPath != NULL && read_text_file(pResultPath, &pResultData, &resultDataSize) == FS_SUCCESS) {
+            text_range expectedResult = trim_line(pResultData, 0, resultDataSize);
+            expectedSuccess = text_range_equal_string(pResultData, expectedResult, "success");
+        }
+    }
+
     pPreviousTicketsFolder = g_pTicketsFolder;
     g_pTicketsFolder = temporaryPath;
 
@@ -1938,7 +1981,9 @@ static int run_metadata_command_test(const char* pCaseName)
         return 0;
     }
 
-    if (strcmp(ppArguments[0], "set") == 0) {
+    if (!validate_metadata_arguments(ppArguments[0], argumentCount - 1, ppArguments + 1)) {
+        result = 1;
+    } else if (strcmp(ppArguments[0], "set") == 0) {
         result = set_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment);
     } else if (strcmp(ppArguments[0], "clear") == 0) {
         result = clear_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment);
@@ -1946,7 +1991,7 @@ static int run_metadata_command_test(const char* pCaseName)
         result = 1;
     }
 
-    passed = (result == 0 && read_text_file(pTemporaryTicketPath, &pActualData, &actualDataSize) == FS_SUCCESS && actualDataSize == expectedDataSize && memcmp(pActualData, pExpectedData, expectedDataSize) == 0);
+    passed = ((result == 0) == expectedSuccess && read_text_file(pTemporaryTicketPath, &pActualData, &actualDataSize) == FS_SUCCESS && actualDataSize == expectedDataSize && memcmp(pActualData, pExpectedData, expectedDataSize) == 0);
     fs_remove(NULL, pTemporaryTicketPath, 0);
     fs_remove(NULL, temporaryPath, 0);
     g_pTicketsFolder = pPreviousTicketsFolder;
@@ -2122,7 +2167,6 @@ int main(int argc, char** argv)
 
     if (strcmp(argv[argumentIndex], "set") == 0 || strcmp(argv[argumentIndex], "clear") == 0) {
         int metadataArgumentCount;
-        int metadataArgumentIndex;
         int addComment = 1;
         int hasValues = strcmp(argv[argumentIndex], "set") == 0;
 
@@ -2137,31 +2181,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        for (metadataArgumentIndex = 0; metadataArgumentIndex < metadataArgumentCount; ++metadataArgumentIndex) {
-            const char* pMetadataArgument = argv[argumentIndex + 2 + metadataArgumentIndex];
-            text_range key;
-            text_range value;
-            int isValid;
-
-            if (strcmp(pMetadataArgument, "--no-comment") == 0) {
-                fs_file_writef(STDERR, "The --no-comment option must be the final argument.\n");
-                return 1;
-            }
-
-            if (hasValues) {
-                isValid = parse_metadata_set_argument(pMetadataArgument, &key, &value);
-            } else {
-                isValid = parse_metadata_key_only_argument(pMetadataArgument, &key);
-            }
-
-            if (!isValid) {
-                fs_file_writef(STDERR, "Invalid %s metadata argument: %s.\n", argv[argumentIndex], pMetadataArgument);
-                return 1;
-            }
-        }
-
-        if (metadata_arguments_have_duplicate_keys(metadataArgumentCount, argv + argumentIndex + 2, hasValues)) {
-            fs_file_writef(STDERR, "The %s command contains a duplicate metadata key.\n", argv[argumentIndex]);
+        if (!validate_metadata_arguments(argv[argumentIndex], metadataArgumentCount, argv + argumentIndex + 2)) {
             return 1;
         }
 

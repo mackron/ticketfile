@@ -1,0 +1,7 @@
+assignee: Clanker
+status: open
+priority: high
+
+---
+
+Multiple metadata test.
