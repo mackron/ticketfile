@@ -804,6 +804,10 @@ static int create_ticket_file(const char* pFileData, size_t fileDataSize)
     for (pIterator = fs_first(NULL, g_pTicketsFolder, 0); pIterator != NULL; pIterator = fs_next(pIterator)) {
         unsigned long id;
 
+        if (pIterator->info.directory) {
+            continue;
+        }
+
         if (parse_ticket_id(pIterator->pName, pIterator->nameLen, &id)) {
             if (!foundID || id > highestID) {
                 highestID = id;
@@ -1007,7 +1011,7 @@ static int list_tickets(int filterCount, char** ppFilters)
     for (pIterator = fs_first(NULL, g_pTicketsFolder, 0); pIterator != NULL; pIterator = fs_next(pIterator)) {
         char** ppNewFileNames;
 
-        if (strstr(pIterator->pName, ".ticketfile-tmp-") != NULL) {
+        if (pIterator->info.directory || strstr(pIterator->pName, ".ticketfile-tmp-") != NULL) {
             continue;
         }
 
