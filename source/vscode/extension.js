@@ -1,6 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
-const { validateStatusGroups } = require("./ticket_configuration");
+const { loadStatusGroups } = require("./ticket_configuration");
 const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 function getTicketsFolderPath()
@@ -300,12 +300,13 @@ class TicketItem extends vscode.TreeItem
 
 class TicketProvider
 {
-    constructor()
+    constructor(statusGroups)
     {
         this.changeTreeDataEmitter = new vscode.EventEmitter();
         this.onDidChangeTreeData = this.changeTreeDataEmitter.event;
         this.filterText = "";
         this.filters = [];
+        this.statusGroups = statusGroups;
     }
 
     refresh()
@@ -410,14 +411,13 @@ class TicketProvider
 
 function activate(context)
 {
-    const statusGroups = vscode.workspace.getConfiguration("ticketfile").get("statusGroups");
-    const statusGroupError = validateStatusGroups(statusGroups);
+    const statusGroupConfiguration = loadStatusGroups(vscode.workspace.getConfiguration("ticketfile"));
 
-    if (statusGroupError !== undefined) {
-        vscode.window.showErrorMessage(statusGroupError);
+    if (statusGroupConfiguration.error !== undefined) {
+        vscode.window.showErrorMessage(statusGroupConfiguration.error);
     }
 
-    const ticketProvider = new TicketProvider();
+    const ticketProvider = new TicketProvider(statusGroupConfiguration.groups);
     const treeView = vscode.window.createTreeView("ticketfile.tickets", { treeDataProvider: ticketProvider });
 
     function updateFilterDisplay()

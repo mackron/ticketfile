@@ -1,3 +1,8 @@
+const defaultStatusGroups = [
+    { label: "Open", status: "open", expanded: true },
+    { label: "Closed", status: "closed", expanded: false }
+];
+
 function validateStatusGroups(groups)
 {
     const statuses = new Set();
@@ -32,6 +37,31 @@ function validateStatusGroups(groups)
     return undefined;
 }
 
+function loadStatusGroups(configuration)
+{
+    const inspected = configuration.inspect("statusGroups");
+    let groups;
+
+    if (inspected !== undefined && inspected.workspaceValue !== undefined) {
+        groups = inspected.workspaceValue;
+    } else if (inspected !== undefined && inspected.globalValue !== undefined) {
+        groups = inspected.globalValue;
+    } else if (inspected !== undefined && inspected.defaultValue !== undefined) {
+        groups = inspected.defaultValue;
+    } else {
+        groups = defaultStatusGroups;
+    }
+
+    const error = validateStatusGroups(groups);
+
+    return {
+        error,
+        groups: error === undefined ? groups.map((group) => ({ ...group })) :
+            defaultStatusGroups.map((group) => ({ ...group }))
+    };
+}
+
 module.exports = {
+    loadStatusGroups,
     validateStatusGroups
 };
