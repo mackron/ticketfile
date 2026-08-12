@@ -111,8 +111,8 @@ VS Code:
 - [x] Refresh the ticket tree after relevant configuration changes.
 - [x] Build ticket groups from configuration instead of fixed statuses.
 - [x] Map missing and unknown statuses to Uncategorized.
-- [ ] Preserve current Open and Closed behavior in default settings.
-- [ ] Replace Close and Reopen actions with "Set Status...".
+- [x] Preserve current Open and Closed behavior in default settings.
+- [x] Replace Close and Reopen actions with "Set Status...".
 - [ ] Show configured statuses in a selection list.
 - [ ] Update status metadata and add the applicable history message.
 - [ ] Use configured initial status when creating a ticket.

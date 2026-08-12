@@ -182,6 +182,26 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
     }
 }
 
+async function setTicketStatus(ticketItem, ticketProvider)
+{
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket before changing its status.");
+        return;
+    }
+
+    const selected = await vscode.window.showQuickPick(
+        ticketProvider.statusGroups.map((group) => ({ label: group.label, status: group.status })),
+        {
+            title: "Set Ticket Status",
+            placeHolder: "Select a status"
+        }
+    );
+
+    if (selected !== undefined) {
+        await updateTicketStatus(ticketItem, selected.status, ticketProvider);
+    }
+}
+
 async function openTicket(ticketItem)
 {
     if (!(ticketItem instanceof TicketItem)) {
@@ -288,7 +308,7 @@ class TicketItem extends vscode.TreeItem
 
         this.fileName = fileName;
         this.status = status;
-        this.contextValue = `${status}Ticket`;
+        this.contextValue = "ticketfileTicket";
         this.resourceUri = fileUri;
         this.tooltip = diagnostic === undefined ? label : `${label}: ${diagnostic}`;
         this.command = {
@@ -477,17 +497,14 @@ function activate(context)
     });
     const openTicketCommand = vscode.commands.registerCommand("ticketfile.openTicket", openTicket);
     const addCommentCommand = vscode.commands.registerCommand("ticketfile.addComment", commentOnTicket);
-    const closeTicketCommand = vscode.commands.registerCommand("ticketfile.closeTicket", (ticketItem) => {
-        return updateTicketStatus(ticketItem, "closed", ticketProvider);
-    });
-    const reopenTicketCommand = vscode.commands.registerCommand("ticketfile.reopenTicket", (ticketItem) => {
-        return updateTicketStatus(ticketItem, "open", ticketProvider);
+    const setTicketStatusCommand = vscode.commands.registerCommand("ticketfile.setTicketStatus", (ticketItem) => {
+        return setTicketStatus(ticketItem, ticketProvider);
     });
     const deleteTicketCommand = vscode.commands.registerCommand("ticketfile.deleteTicket", (ticketItem) => {
         return deleteTicket(ticketItem, ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, closeTicketCommand, reopenTicketCommand, deleteTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, deleteTicketCommand
     );
 
     updateFilterDisplay();

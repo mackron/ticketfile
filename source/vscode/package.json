@@ -76,14 +76,9 @@
                 "icon": "$(comment-discussion)"
             },
             {
-                "command": "ticketfile.closeTicket",
-                "title": "Close Ticket",
-                "icon": "$(issue-closed)"
-            },
-            {
-                "command": "ticketfile.reopenTicket",
-                "title": "Reopen Ticket",
-                "icon": "$(history)"
+                "command": "ticketfile.setTicketStatus",
+                "title": "Set Status...",
+                "icon": "$(edit)"
             },
             {
                 "command": "ticketfile.deleteTicket",
@@ -116,38 +111,28 @@
             ],
             "view/item/context": [
                 {
-                    "command": "ticketfile.closeTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|uncategorized)Ticket$/",
-                    "group": "inline@1"
-                },
-                {
-                    "command": "ticketfile.reopenTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(closed|uncategorized)Ticket$/",
+                    "command": "ticketfile.setTicketStatus",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "inline@1"
                 },
                 {
                     "command": "ticketfile.addComment",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed|uncategorized)Ticket$/",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "inline@2"
                 },
                 {
-                    "command": "ticketfile.closeTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|uncategorized)Ticket$/",
-                    "group": "1_modification@1"
-                },
-                {
-                    "command": "ticketfile.reopenTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(closed|uncategorized)Ticket$/",
+                    "command": "ticketfile.setTicketStatus",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "1_modification@1"
                 },
                 {
                     "command": "ticketfile.addComment",
-                    "when": "view == ticketfile.tickets && viewItem =~ /^(open|closed|uncategorized)Ticket$/",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "1_modification@2"
                 },
                 {
                     "command": "ticketfile.deleteTicket",
-                    "when": "view == ticketfile.tickets && viewItem =~ /Ticket$/",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "2_danger@1"
                 }
             ]
