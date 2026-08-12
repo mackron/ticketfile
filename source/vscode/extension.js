@@ -314,6 +314,12 @@ class TicketProvider
         this.changeTreeDataEmitter.fire(undefined);
     }
 
+    setStatusGroups(statusGroups)
+    {
+        this.statusGroups = statusGroups;
+        this.refresh();
+    }
+
     setFilter(filterText)
     {
         this.filterText = filterText;
@@ -501,6 +507,18 @@ function activate(context)
     const configurationRegistration = vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration("ticketfile.ticketsFolder")) {
             updateTicketWatcher();
+            ticketProvider.refresh();
+        }
+
+        if (event.affectsConfiguration("ticketfile.statusGroups")) {
+            const updatedConfiguration = loadStatusGroups(vscode.workspace.getConfiguration("ticketfile"));
+
+            if (updatedConfiguration.error !== undefined) {
+                vscode.window.showErrorMessage(updatedConfiguration.error);
+            }
+
+            ticketProvider.setStatusGroups(updatedConfiguration.groups);
+        } else if (event.affectsConfiguration("ticketfile.initialStatus")) {
             ticketProvider.refresh();
         }
     });
