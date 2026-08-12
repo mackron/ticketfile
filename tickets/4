@@ -99,7 +99,7 @@ CLI:
 - [x] Add tests for missing, new, replaced, and removed metadata.
 - [x] Add tests for multiple metadata changes and atomic failure.
 - [x] Add tests for invalid and duplicate metadata arguments.
-- [ ] Add tests for spaces and additional colons in values.
+- [x] Add tests for spaces and additional colons in values.
 - [ ] Add tests for status history and "--no-comment".
 - [ ] Add tests for unchanged statuses and compatibility aliases.
 

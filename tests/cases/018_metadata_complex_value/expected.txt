@@ -1,0 +1,6 @@
+source: https://example.com:8443/a path:with colons
+status: open
+
+---
+
+Complex value test.
