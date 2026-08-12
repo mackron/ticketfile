@@ -11,7 +11,7 @@ const ticketsDirectory = path.join(repositoryDirectory, "tickets");
 function printUsage()
 {
     console.log("USAGE:");
-    console.log("    node release.js [--check | --yes | --write-notes <path>]");
+    console.log("    node release.js [--check | --yes | --write-notes <path> | --test]");
     console.log("");
     console.log("OPTIONS:");
     console.log("    --check");
@@ -22,6 +22,9 @@ function printUsage()
     console.log("");
     console.log("    --write-notes <path>");
     console.log("        Write curated release notes for the current version.");
+    console.log("");
+    console.log("    --test");
+    console.log("        Run release-note extraction tests.");
     console.log("");
     console.log("    -h, --help");
     console.log("        Show this help text.");
@@ -140,16 +143,16 @@ function extractReleaseBody(text)
     return body + "\n";
 }
 
-function getReleaseNotes(versionText)
+function getReleaseNotes(versionText, directory = ticketsDirectory)
 {
     const matches = [];
 
-    for (const name of fs.readdirSync(ticketsDirectory)) {
+    for (const name of fs.readdirSync(directory)) {
         if (!/^\d+$/.test(name)) {
             continue;
         }
 
-        const ticketPath = path.join(ticketsDirectory, name);
+        const ticketPath = path.join(directory, name);
         const text = fs.readFileSync(ticketPath, "utf8");
         const metadataSeparator = findTicketSeparator(text, 0);
 
@@ -175,6 +178,43 @@ function writeReleaseNotes(versionText, outputPath)
 
     fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
     fs.writeFileSync(outputPath, notes, "utf8");
+}
+
+function runReleaseTests()
+{
+    const assert = require("assert");
+    const os = require("os");
+    const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "ticketfile-release-test-"));
+
+    function writeTicket(name, text)
+    {
+        fs.writeFileSync(path.join(temporaryDirectory, name), text, "utf8");
+    }
+
+    try {
+        const validTicket = "status: open\nrelease-notes: 1.1.0\n\n---\n\n" +
+            "Release Notes - v1.1.0\n\n## CLI\n\n- Added metadata commands.\n\n---\n\nComment.\n";
+
+        assert.strictEqual(extractReleaseBody(validTicket), "## CLI\n\n- Added metadata commands.\n");
+
+        writeTicket("1", validTicket);
+        writeTicket("not-a-ticket", validTicket.replace("1.1.0", "ignored"));
+        assert.strictEqual(getReleaseNotes("1.1.0", temporaryDirectory),
+            "## CLI\n\n- Added metadata commands.\n");
+        assert.throws(() => getReleaseNotes("1.1", temporaryDirectory), /No release-note ticket/);
+
+        writeTicket("2", validTicket.replace("Release Notes - v1.1.0", "Other release notes"));
+        assert.throws(() => getReleaseNotes("1.1.0", temporaryDirectory), /Multiple release-note tickets/);
+
+        assert.throws(() => extractReleaseBody("release-notes: 1.1.0\nNo separator.\n"),
+            /no metadata separator/);
+        assert.throws(() => extractReleaseBody("release-notes: 1.1.0\n\n---\n\nShort description.\n"),
+            /empty release body/);
+    } finally {
+        fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
+
+    console.log("PASS: release notes");
 }
 
 function runGit(arguments, allowFailure)
@@ -345,6 +385,7 @@ async function main()
     const skipConfirmation = arguments.length === 1 && arguments[0] === "--yes";
     const printVersion = arguments.length === 1 && arguments[0] === "--print-version";
     const writeNotes = arguments.length === 2 && arguments[0] === "--write-notes";
+    const runTests = arguments.length === 1 && arguments[0] === "--test";
 
     if (arguments.length === 1 && (arguments[0] === "-h" || arguments[0] === "--help")) {
         printUsage();
@@ -352,13 +393,17 @@ async function main()
     }
 
     if ((!writeNotes && arguments.length > 1) ||
-        (arguments.length === 1 && !checkOnly && !skipConfirmation && !printVersion)) {
+        (arguments.length === 1 && !checkOnly && !skipConfirmation && !printVersion && !runTests)) {
         printUsage();
         throw new Error("Invalid command-line options.");
     }
 
     const version = readVersion();
     const versionText = formatVersion(version);
+    if (runTests) {
+        runReleaseTests();
+        return;
+    }
     if (printVersion) {
         console.log(versionText);
         return;
@@ -397,7 +442,9 @@ async function main()
     console.log("Pushed " + tag + ". GitHub release automation can now build release files.");
 }
 
-main().catch((error) => {
-    console.error("ERROR: " + error.message);
-    process.exitCode = 1;
-});
+if (require.main === module) {
+    main().catch((error) => {
+        console.error("ERROR: " + error.message);
+        process.exitCode = 1;
+    });
+}
