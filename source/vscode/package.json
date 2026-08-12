@@ -1,6 +1,6 @@
 {
     "name": "ticketfile",
-    "displayName": "Ticket Explorer",
+    "displayName": "Ticketfile",
     "description": "Manage plain-text tickets from Visual Studio Code.",
     "icon": "resources/marketplace-icon.png",
     "version": "1.0.0",
