@@ -1,0 +1,5 @@
+status: open
+
+---
+
+Malformed metadata test.
