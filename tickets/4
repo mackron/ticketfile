@@ -119,7 +119,7 @@ VS Code:
 General:
 
 - [x] Document general metadata commands.
-- [ ] Document status group settings, scopes, replacement behavior, and examples.
+- [x] Document status group settings, scopes, replacement behavior, and examples.
 - [ ] Remove Close and Reopen commands from user documentation.
 - [ ] Check all documentation for assumptions that only Open and Closed statuses exist.
 - [ ] Run all CLI and VS Code tests.
