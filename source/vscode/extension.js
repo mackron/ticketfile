@@ -90,7 +90,8 @@ async function createTicket()
             }
         }
 
-        const ticketTemplate = "status: open\n\n---\n\n";
+        const initialStatus = vscode.workspace.getConfiguration("ticketfile").get("initialStatus", "open").trim();
+        const ticketTemplate = initialStatus === "" ? "---\n\n" : `status: ${initialStatus}\n\n---\n\n`;
         const ticketContents = Buffer.from(ticketTemplate, "utf8");
         let newID = foundID ? highestID + 1n : 1n;
         let ticketUri;
