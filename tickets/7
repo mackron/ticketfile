@@ -46,7 +46,7 @@ this work item. All configured paths are relative to the first workspace folder.
 Development checklist:
 
 - [x] Define the `ticketfile.ticketFolders` setting with label and path fields.
-- [ ] Validate empty labels, empty paths, and duplicate paths.
+- [x] Validate empty labels, empty paths, and duplicate paths.
 - [ ] Add ticket-folder ownership to status groups and ticket items.
 - [ ] Add a ticket-folder tree level when multiple folders are configured.
 - [ ] Preserve the current tree layout when one folder is configured.

@@ -6,6 +6,62 @@ const defaultStatusGroups = [
     { label: "Open", status: "open", expanded: true },
     { label: "Closed", status: "closed", expanded: false }
 ];
+const defaultTicketFolders = [
+    { label: "Tickets", path: "tickets" }
+];
+
+function normalizeTicketFolderPath(folderPath)
+{
+    return folderPath.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function validateTicketFolders(folders)
+{
+    const paths = new Set();
+
+    if (!Array.isArray(folders) || folders.length === 0) {
+        return "Ticket folders must be a non-empty array.";
+    }
+
+    for (let index = 0; index < folders.length; index += 1) {
+        const folder = folders[index];
+        const folderName = `Ticket folder ${index + 1}`;
+
+        if (folder === null || typeof folder !== "object" || Array.isArray(folder)) {
+            return `${folderName} must be an object.`;
+        }
+        if (typeof folder.label !== "string" || folder.label.trim() === "") {
+            return `${folderName} must have a non-empty label.`;
+        }
+        if (typeof folder.path !== "string" || normalizeTicketFolderPath(folder.path) === "") {
+            return `${folderName} must have a non-empty path.`;
+        }
+
+        const normalizedPath = normalizeTicketFolderPath(folder.path);
+        if (paths.has(normalizedPath)) {
+            return `Ticket folders contain duplicate path: ${normalizedPath}.`;
+        }
+
+        paths.add(normalizedPath);
+    }
+
+    return undefined;
+}
+
+function loadTicketFolders(configuration)
+{
+    const folders = configuration.get("ticketFolders", defaultTicketFolders);
+    const error = validateTicketFolders(folders);
+    const selectedFolders = error === undefined ? folders : defaultTicketFolders;
+
+    return {
+        error,
+        folders: selectedFolders.map((folder) => ({
+            label: folder.label.trim(),
+            path: normalizeTicketFolderPath(folder.path)
+        }))
+    };
+}
 
 function validateStatusGroups(groups)
 {
@@ -71,9 +127,7 @@ function isConfiguredStatus(status, groups)
 
 function getTicketsFolderPath()
 {
-    const configuredPath = vscode.workspace.getConfiguration("ticketfile").get("ticketsFolder", "tickets");
-
-    return configuredPath.trim() === "" ? "tickets" : configuredPath;
+    return loadTicketFolders(vscode.workspace.getConfiguration("ticketfile")).folders[0].path;
 }
 
 function readGitConfig(key, workingDirectory)
@@ -539,8 +593,12 @@ class TicketProvider
 
 function activate(context)
 {
+    const ticketFolderConfiguration = loadTicketFolders(vscode.workspace.getConfiguration("ticketfile"));
     const statusGroupConfiguration = loadStatusGroups(vscode.workspace.getConfiguration("ticketfile"));
 
+    if (ticketFolderConfiguration.error !== undefined) {
+        vscode.window.showErrorMessage(ticketFolderConfiguration.error);
+    }
     if (statusGroupConfiguration.error !== undefined) {
         vscode.window.showErrorMessage(statusGroupConfiguration.error);
     }
@@ -624,7 +682,13 @@ function activate(context)
     updateTicketWatcher();
 
     const configurationRegistration = vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration("ticketfile.ticketsFolder")) {
+        if (event.affectsConfiguration("ticketfile.ticketFolders")) {
+            const updatedConfiguration = loadTicketFolders(vscode.workspace.getConfiguration("ticketfile"));
+
+            if (updatedConfiguration.error !== undefined) {
+                vscode.window.showErrorMessage(updatedConfiguration.error);
+            }
+
             updateTicketWatcher();
             ticketProvider.refresh();
         }

@@ -148,6 +148,7 @@
                             "path": "tickets"
                         }
                     ],
+                    "minItems": 1,
                     "description": "Ticket folders in display order. Paths are relative to the first folder in the workspace.",
                     "items": {
                         "type": "object",
@@ -159,10 +160,12 @@
                         "properties": {
                             "label": {
                                 "type": "string",
+                                "minLength": 1,
                                 "description": "Folder label shown in the ticket tree."
                             },
                             "path": {
                                 "type": "string",
+                                "minLength": 1,
                                 "description": "Path relative to the first folder in the workspace."
                             }
                         }
