@@ -33,6 +33,6 @@ Development Checklist:
 - [x] Exclude the short description and ticket comments from extracted Markdown.
 - [x] Reject an empty extracted release body.
 - [x] Add extraction tests for valid and invalid release-note tickets.
-- [ ] Update the GitHub release workflow to use `--write-notes` and `--notes-file`.
+- [x] Update the GitHub release workflow to use `--write-notes` and `--notes-file`.
 - [ ] Document the release-note ticket format and release process.
 - [ ] Run release validation and relevant test suites.

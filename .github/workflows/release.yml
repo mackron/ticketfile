@@ -133,6 +133,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
       - name: Download packages
         uses: actions/download-artifact@v8
         with:
@@ -140,8 +143,11 @@ jobs:
           path: build/release-assets
           merge-multiple: true
 
+      - name: Prepare release notes
+        run: node release.js --write-notes build/release-notes.md
+
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "$GITHUB_REF_NAME" build/release-assets/* --verify-tag --generate-notes --title "Ticketfile ${{ needs.validate.outputs.version }}"
+        run: gh release create "$GITHUB_REF_NAME" build/release-assets/* --verify-tag --notes-file build/release-notes.md --title "Ticketfile ${{ needs.validate.outputs.version }}"
