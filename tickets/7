@@ -50,10 +50,10 @@ Development checklist:
 - [x] Add ticket-folder ownership to status groups and ticket items.
 - [x] Add a ticket-folder tree level when multiple folders are configured.
 - [x] Preserve the current tree layout when one folder is configured.
-- [ ] Load and group tickets from every configured ticket folder.
-- [ ] Keep duplicate numeric ticket IDs distinct between ticket folders.
-- [ ] Create and remove one file watcher for each configured ticket folder.
-- [ ] Refresh when ticket-folder configuration changes.
+- [x] Load and group tickets from every configured ticket folder.
+- [x] Keep duplicate numeric ticket IDs distinct between ticket folders.
+- [x] Create and remove one file watcher for each configured ticket folder.
+- [x] Refresh when ticket-folder configuration changes.
 - [ ] Select or infer the target ticket folder when creating a ticket.
 - [ ] Verify filtering, counters, status changes, comments, and deletion across folders.
 - [ ] Update VS Code extension documentation.

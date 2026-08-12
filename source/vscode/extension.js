@@ -651,7 +651,7 @@ function activate(context)
     }
 
     const refreshCommand = vscode.commands.registerCommand("ticketfile.refresh", () => {
-        updateTicketWatcher();
+        updateTicketWatchers();
         ticketProvider.refresh();
     });
     const filterCommand = vscode.commands.registerCommand("ticketfile.filterTickets", async () => {
@@ -672,7 +672,7 @@ function activate(context)
     });
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", async () => {
         await createTicket();
-        updateTicketWatcher();
+        updateTicketWatchers();
         ticketProvider.refresh();
     });
     const openTicketCommand = vscode.commands.registerCommand("ticketfile.openTicket", openTicket);
@@ -691,7 +691,7 @@ function activate(context)
 
     let watcherDisposables = [];
 
-    function updateTicketWatcher()
+    function updateTicketWatchers()
     {
         const workspaceFolders = vscode.workspace.workspaceFolders;
 
@@ -700,9 +700,12 @@ function activate(context)
         }
         watcherDisposables = [];
 
-        if (workspaceFolders !== undefined && workspaceFolders.length > 0) {
-            const ticketsFolderPath = getTicketsFolderPath().replace(/\\/g, "/").replace(/\/+$/, "");
-            const ticketPattern = new vscode.RelativePattern(workspaceFolders[0], `${ticketsFolderPath}/*`);
+        if (workspaceFolders === undefined || workspaceFolders.length === 0) {
+            return;
+        }
+
+        for (const ticketFolder of ticketProvider.ticketFolders) {
+            const ticketPattern = new vscode.RelativePattern(workspaceFolders[0], `${ticketFolder.path}/*`);
             const ticketWatcher = vscode.workspace.createFileSystemWatcher(ticketPattern);
 
             watcherDisposables.push(
@@ -714,7 +717,7 @@ function activate(context)
         }
     }
 
-    updateTicketWatcher();
+    updateTicketWatchers();
 
     const configurationRegistration = vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration("ticketfile.ticketFolders")) {
@@ -725,7 +728,7 @@ function activate(context)
             }
 
             ticketProvider.setTicketFolders(updatedConfiguration.folders);
-            updateTicketWatcher();
+            updateTicketWatchers();
         }
 
         if (event.affectsConfiguration("ticketfile.statusGroups")) {
