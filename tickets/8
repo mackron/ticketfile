@@ -1,4 +1,4 @@
-status: open
+status: closed
 version: 1.1.0
 
 ---
@@ -33,3 +33,9 @@ Development Checklist:
 - [x] Update CLI usage documentation.
 - [x] Update release notes for ticket with "release-notes:1.1.0".
 - [x] Run CLI builds and tests.
+
+---
+
+2026-08-12 - David Reid
+
+Status changed from open to closed.
