@@ -54,6 +54,11 @@ assert.deepStrictEqual(createStatusGroupDefinitions(userGroups), [
 ]);
 assert.strictEqual(isConfiguredStatus("review", userGroups), true);
 assert.strictEqual(isConfiguredStatus("done", userGroups), true);
+assert.strictEqual(isConfiguredStatus(undefined, userGroups), false);
+assert.strictEqual(isConfiguredStatus("unknown", userGroups), false);
+assert.strictEqual(isConfiguredStatus("uncategorized", [
+    { label: "Named Uncategorized", status: "uncategorized", expanded: false }
+]), true);
 
 const invalidConfiguration = loadStatusGroups(configuration({
     defaultValue: manifestDefault,
