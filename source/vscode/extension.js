@@ -178,7 +178,7 @@ function getCurrentDate()
 
 async function selectTicketFolder(ticketFolders, selectedItem)
 {
-    if (selectedItem !== undefined && selectedItem.ticketFolder !== undefined) {
+    if (selectedItem !== undefined && selectedItem !== null && selectedItem.ticketFolder !== undefined) {
         const selectedFolder = ticketFolders.find((folder) => folder.path === selectedItem.ticketFolder.path);
 
         if (selectedFolder !== undefined) {
@@ -202,7 +202,7 @@ async function selectTicketFolder(ticketFolders, selectedItem)
         }
     );
 
-    return selected === undefined ? undefined : selected.ticketFolder;
+    return selected === undefined || selected === null ? undefined : selected.ticketFolder;
 }
 
 async function createTicket(ticketFolder)
@@ -700,7 +700,7 @@ function activate(context)
         updateFilterDisplay();
     });
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", async (selectedItem) => {
-        const inferredItem = selectedItem === undefined ? treeView.selection[0] : selectedItem;
+        const inferredItem = selectedItem === undefined || selectedItem === null ? treeView.selection[0] : selectedItem;
         const ticketFolder = await selectTicketFolder(ticketProvider.ticketFolders, inferredItem);
 
         await createTicket(ticketFolder);

@@ -1,0 +1,23 @@
+assignee: David Reid
+status: closed
+version: 1.2.0
+
+---
+
+VS Code: Occasional error message.
+
+In the VS Code extension I've seen the occasional "Cannot read properties of null (reading 'ticketFolder')"
+when trying to create a new ticket. The strange thing is, is that it happened, then I restarted VS
+Code which fixed it temporarily, and then it broken again randomly.
+
+---
+
+2026-08-13 - Clanker
+
+Status changed from open to review.
+
+---
+
+2026-08-13 - David Reid
+
+Status changed from review to closed.

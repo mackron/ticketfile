@@ -1,0 +1,10 @@
+status: open
+release-notes: 1.2.0
+
+---
+
+Release Notes - v1.2.0
+
+## Visual Studio Code
+
+- Fix a "Cannot read properties of null (reading 'ticketFolder')" error.
