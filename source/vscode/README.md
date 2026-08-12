@@ -10,7 +10,7 @@ tools.
 - Create, open, change status, comment on, and delete tickets.
 - Filter tickets by metadata such as `status:open`.
 - Refresh the view automatically when ticket files change.
-- Configure a ticket directory for each workspace.
+- Configure one or more ticket directories for each workspace.
 
 ## Getting Started
 
@@ -18,8 +18,34 @@ Open a folder in Visual Studio Code, then select **Tickets** in the Activity Bar
 By default, Ticket Explorer reads ticket files from the `tickets` directory in
 the first workspace folder.
 
-Use the `ticketfile.ticketsFolder` workspace setting to select a different
-directory. The path must be relative to the first workspace folder.
+Use `ticketfile.ticketFolders` to configure ticket directories. Each entry requires a display
+label and a path relative to the first workspace folder:
+
+```json
+{
+    "ticketfile.ticketFolders": [
+        {
+            "label": "Tickets",
+            "path": "tickets"
+        },
+        {
+            "label": "Private",
+            "path": "tickets/private"
+        }
+    ]
+}
+```
+
+With one configured directory, status groups remain at the root of the ticket tree. With multiple
+directories, each directory has a top-level tree item that contains its status groups. Ticket IDs
+can overlap between directories.
+
+When creating a ticket, Ticket Explorer uses the directory from the selected tree item when
+possible. If multiple directories are configured and no directory can be inferred, it asks you to
+select one.
+
+Set `ticketfile.ticketFolders` in user settings to use the same directories in all projects. A
+workspace setting replaces the complete user list. User and workspace arrays do not merge.
 
 ## Status Groups
 
