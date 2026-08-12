@@ -48,8 +48,8 @@ Development checklist:
 - [x] Define the `ticketfile.ticketFolders` setting with label and path fields.
 - [x] Validate empty labels, empty paths, and duplicate paths.
 - [x] Add ticket-folder ownership to status groups and ticket items.
-- [ ] Add a ticket-folder tree level when multiple folders are configured.
-- [ ] Preserve the current tree layout when one folder is configured.
+- [x] Add a ticket-folder tree level when multiple folders are configured.
+- [x] Preserve the current tree layout when one folder is configured.
 - [ ] Load and group tickets from every configured ticket folder.
 - [ ] Keep duplicate numeric ticket IDs distinct between ticket folders.
 - [ ] Create and remove one file watcher for each configured ticket folder.

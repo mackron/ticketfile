@@ -424,6 +424,17 @@ class TicketGroup extends vscode.TreeItem
     }
 }
 
+class TicketFolder extends vscode.TreeItem
+{
+    constructor(ticketFolder)
+    {
+        super(ticketFolder.label, vscode.TreeItemCollapsibleState.Expanded);
+
+        this.ticketFolder = ticketFolder;
+        this.contextValue = "ticketfileTicketFolder";
+    }
+}
+
 class TicketItem extends vscode.TreeItem
 {
     constructor(fileName, fileUri, status, title, diagnostic, ticketFolder)
@@ -460,12 +471,12 @@ class TicketProvider
         this.filters = [];
         this.ticketFolders = ticketFolders;
         this.statusGroups = statusGroups;
-        this.ticketPromise = undefined;
+        this.ticketPromises = new Map();
     }
 
     refresh()
     {
-        this.ticketPromise = undefined;
+        this.ticketPromises.clear();
         this.changeTreeDataEmitter.fire(undefined);
     }
 
@@ -493,33 +504,45 @@ class TicketProvider
         return element;
     }
 
+    async getStatusGroups(ticketFolder)
+    {
+        const tickets = await this.getTickets(ticketFolder);
+        const groups = this.statusGroups.map((group) => new TicketGroup(
+            group.label,
+            group.status,
+            tickets.filter((ticket) => ticket.status === group.status).length,
+            group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+            ticketFolder
+        ));
+
+        groups.push(new TicketGroup(
+            "Uncategorized",
+            undefined,
+            tickets.filter((ticket) => !isConfiguredStatus(ticket.status, this.statusGroups)).length,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            ticketFolder,
+            true
+        ));
+
+        return groups;
+    }
+
     async getChildren(element)
     {
         if (element === undefined) {
-            const tickets = await this.getTickets();
-            const ticketFolder = this.ticketFolders[0];
-            const groups = this.statusGroups.map((group) => new TicketGroup(
-                group.label,
-                group.status,
-                tickets.filter((ticket) => ticket.status === group.status).length,
-                group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
-                ticketFolder
-            ));
+            if (this.ticketFolders.length > 1) {
+                return this.ticketFolders.map((ticketFolder) => new TicketFolder(ticketFolder));
+            }
 
-            groups.push(new TicketGroup(
-                "Uncategorized",
-                undefined,
-                tickets.filter((ticket) => !isConfiguredStatus(ticket.status, this.statusGroups)).length,
-                vscode.TreeItemCollapsibleState.Collapsed,
-                ticketFolder,
-                true
-            ));
+            return this.getStatusGroups(this.ticketFolders[0]);
+        }
 
-            return groups;
+        if (element instanceof TicketFolder) {
+            return this.getStatusGroups(element.ticketFolder);
         }
 
         if (element instanceof TicketGroup) {
-            const tickets = await this.getTickets();
+            const tickets = await this.getTickets(element.ticketFolder);
             if (element.isFallback) {
                 return tickets.filter((ticket) => !isConfiguredStatus(ticket.status, this.statusGroups));
             }
@@ -530,16 +553,16 @@ class TicketProvider
         return [];
     }
 
-    async getTickets()
+    async getTickets(ticketFolder)
     {
-        if (this.ticketPromise === undefined) {
-            this.ticketPromise = this.loadTickets();
+        if (!this.ticketPromises.has(ticketFolder.path)) {
+            this.ticketPromises.set(ticketFolder.path, this.loadTickets(ticketFolder));
         }
 
-        return this.ticketPromise;
+        return this.ticketPromises.get(ticketFolder.path);
     }
 
-    async loadTickets()
+    async loadTickets(ticketFolder)
     {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const tickets = [];
@@ -548,7 +571,6 @@ class TicketProvider
             return tickets;
         }
 
-        const ticketFolder = this.ticketFolders[0];
         const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, ticketFolder.path);
         let entries;
 
