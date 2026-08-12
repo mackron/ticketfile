@@ -460,6 +460,7 @@ class TicketFolder extends vscode.TreeItem
 
         this.ticketFolder = ticketFolder;
         this.contextValue = "ticketfileTicketFolder";
+        this.tooltip = ticketFolder.path;
     }
 }
 
