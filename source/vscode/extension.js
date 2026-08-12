@@ -413,11 +413,12 @@ async function deleteTicket(ticketItem, ticketProvider)
 
 class TicketGroup extends vscode.TreeItem
 {
-    constructor(label, status, count, collapsibleState, isFallback = false)
+    constructor(label, status, count, collapsibleState, ticketFolder, isFallback = false)
     {
         super(label, collapsibleState);
 
         this.status = status;
+        this.ticketFolder = ticketFolder;
         this.isFallback = isFallback;
         this.description = count.toString();
     }
@@ -425,7 +426,7 @@ class TicketGroup extends vscode.TreeItem
 
 class TicketItem extends vscode.TreeItem
 {
-    constructor(fileName, fileUri, status, title, diagnostic)
+    constructor(fileName, fileUri, status, title, diagnostic, ticketFolder)
     {
         let label = fileName;
 
@@ -437,6 +438,7 @@ class TicketItem extends vscode.TreeItem
 
         this.fileName = fileName;
         this.status = status;
+        this.ticketFolder = ticketFolder;
         this.contextValue = "ticketfileTicket";
         this.resourceUri = fileUri;
         this.tooltip = diagnostic === undefined ? label : `${label}: ${diagnostic}`;
@@ -450,12 +452,13 @@ class TicketItem extends vscode.TreeItem
 
 class TicketProvider
 {
-    constructor(statusGroups)
+    constructor(ticketFolders, statusGroups)
     {
         this.changeTreeDataEmitter = new vscode.EventEmitter();
         this.onDidChangeTreeData = this.changeTreeDataEmitter.event;
         this.filterText = "";
         this.filters = [];
+        this.ticketFolders = ticketFolders;
         this.statusGroups = statusGroups;
         this.ticketPromise = undefined;
     }
@@ -469,6 +472,12 @@ class TicketProvider
     setStatusGroups(statusGroups)
     {
         this.statusGroups = statusGroups;
+        this.refresh();
+    }
+
+    setTicketFolders(ticketFolders)
+    {
+        this.ticketFolders = ticketFolders;
         this.refresh();
     }
 
@@ -488,11 +497,13 @@ class TicketProvider
     {
         if (element === undefined) {
             const tickets = await this.getTickets();
+            const ticketFolder = this.ticketFolders[0];
             const groups = this.statusGroups.map((group) => new TicketGroup(
                 group.label,
                 group.status,
                 tickets.filter((ticket) => ticket.status === group.status).length,
-                group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+                group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+                ticketFolder
             ));
 
             groups.push(new TicketGroup(
@@ -500,6 +511,7 @@ class TicketProvider
                 undefined,
                 tickets.filter((ticket) => !isConfiguredStatus(ticket.status, this.statusGroups)).length,
                 vscode.TreeItemCollapsibleState.Collapsed,
+                ticketFolder,
                 true
             ));
 
@@ -536,7 +548,8 @@ class TicketProvider
             return tickets;
         }
 
-        const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, getTicketsFolderPath());
+        const ticketFolder = this.ticketFolders[0];
+        const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, ticketFolder.path);
         let entries;
 
         try {
@@ -577,7 +590,7 @@ class TicketProvider
                 continue;
             }
 
-            tickets.push(new TicketItem(fileName, fileUri, status, title, diagnostic));
+            tickets.push(new TicketItem(fileName, fileUri, status, title, diagnostic, ticketFolder));
         }
 
         tickets.sort((ticketA, ticketB) => ticketA.fileName.localeCompare(
@@ -603,7 +616,7 @@ function activate(context)
         vscode.window.showErrorMessage(statusGroupConfiguration.error);
     }
 
-    const ticketProvider = new TicketProvider(statusGroupConfiguration.groups);
+    const ticketProvider = new TicketProvider(ticketFolderConfiguration.folders, statusGroupConfiguration.groups);
     const treeView = vscode.window.createTreeView("ticketfile.tickets", { treeDataProvider: ticketProvider });
 
     function updateFilterDisplay()
@@ -689,8 +702,8 @@ function activate(context)
                 vscode.window.showErrorMessage(updatedConfiguration.error);
             }
 
+            ticketProvider.setTicketFolders(updatedConfiguration.folders);
             updateTicketWatcher();
-            ticketProvider.refresh();
         }
 
         if (event.affectsConfiguration("ticketfile.statusGroups")) {
