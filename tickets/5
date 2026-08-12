@@ -1,0 +1,27 @@
+status: open
+release-notes: 1.1.0
+
+---
+
+Release Notes - v1.1.0
+
+## General
+
+- Ticket status values are no longer restricted to "open" and "closed".
+
+## CLI
+
+- Added `get`, `set`, and `clear` commands for general ticket metadata.
+- Added atomic updates for multiple metadata items in one command.
+- Added dated history entries when an existing status changes.
+- Added `--no-comment` to suppress status history entries.
+- Removed the `close` and `reopen` commands. Use `set <id> status:<value>` instead.
+
+## Visual Studio Code:
+
+- Added configurable ticket groups that map to status values.
+- Added user and workspace settings for status groups.
+- Added a configurable initial status for new tickets.
+- Added a permanent Uncategorized group for missing and unmapped statuses.
+- Replaced Close and Reopen actions with a general Set Status action.
+- Added ticket counters to status groups.
