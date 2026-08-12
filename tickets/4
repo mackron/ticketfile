@@ -46,9 +46,7 @@ Metadata arguments for "set" should be split at the first colon so values can co
 colons. Keys and values must not be empty. A command must not contain the same key more than once.
 Metadata changes should be atomic. If one argument is invalid, no metadata must change.
 
-The "close" and "reopen" commands would become aliases for the time being for backwards
-compatibility and should keep their current behaviour. They should be removed from usage
-instructions and all documentation to discourage use.
+The "close" and "reopen" commands should be removed.
 
 
 VS Code:
@@ -95,7 +93,7 @@ CLI:
 - [x] Add status history messages when an existing status changes.
 - [x] Support "--no-comment" for "set" and "clear".
 - [x] Make unchanged status updates succeed without changing the ticket.
-- [x] Keep "close" and "reopen" as undocumented compatibility aliases.
+- [x] Remove the "close" and "reopen" commands.
 - [x] Add tests for missing, new, replaced, and removed metadata.
 - [x] Add tests for multiple metadata changes and atomic failure.
 - [x] Add tests for invalid and duplicate metadata arguments.
