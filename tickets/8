@@ -1,0 +1,35 @@
+status: open
+version: 1.1.0
+
+---
+
+Add CLI description extraction.
+
+The CLI can show a complete ticket and read individual metadata values, but it cannot extract the
+ticket description without metadata or comments. Add a `description` command with this syntax:
+
+    ticket description <id> [--short | --detailed]
+
+With no selection option, the command should write the complete description, including the short
+description and detailed description. `--short` should write only the first description line.
+`--detailed` should write only description content after the first line. Metadata, description
+separators, and comments must not be included in any output mode.
+
+The selection options must be mutually exclusive. Output should preserve description text and line
+breaks in the selected range, with one final newline for non-empty output. A missing detailed
+description should produce empty output and a successful exit status. Existing ticket ID, file
+read, and parse errors should use normal CLI error handling.
+
+
+Development Checklist:
+
+- [x] Add description ranges to parsed ticket data where required.
+- [x] Add the `description` command and argument validation.
+- [x] Output the complete description by default.
+- [x] Add `--short` output.
+- [x] Add `--detailed` output.
+- [x] Exclude metadata, separators, and comments from all output modes.
+- [x] Add tests for each output mode and tickets without detailed descriptions.
+- [x] Update CLI usage documentation.
+- [x] Update release notes for ticket with "release-notes:1.1.0".
+- [x] Run CLI builds and tests.

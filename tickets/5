@@ -12,6 +12,7 @@ Release Notes - v1.1.0
 ## CLI
 
 - Added `get`, `set`, and `clear` commands for general ticket metadata.
+- Added a `description` command to extract complete, short, or detailed ticket descriptions.
 - Added atomic updates for multiple metadata items in one command.
 - Added dated history entries when an existing status changes.
 - Added `--no-comment` to suppress status history entries.

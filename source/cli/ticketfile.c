@@ -79,6 +79,9 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "    show <id>\n");
     fs_file_writef(STDOUT, "        Write the complete ticket file to standard output.\n");
     fs_file_writef(STDOUT, "\n");
+    fs_file_writef(STDOUT, "    description <id> [--short | --detailed]\n");
+    fs_file_writef(STDOUT, "        Write all or part of the ticket description.\n");
+    fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    edit <id>\n");
     fs_file_writef(STDOUT, "        Open the ticket in VISUAL, EDITOR, or the default editor.\n");
     fs_file_writef(STDOUT, "\n");
@@ -117,7 +120,9 @@ typedef struct
 typedef struct
 {
     text_range status;
+    text_range description;
     text_range shortDescription;
+    text_range detailedDescription;
     ticket_metadata* pMetadata;
     size_t metadataCount;
     int hasMetadataSection;
@@ -256,13 +261,18 @@ static int validate_metadata_arguments(const char* pCommand, int argumentCount, 
 static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
 {
     size_t cursor = 0;
+    size_t descriptionEnd = textLength;
     int foundSeparator = 0;
     int validMetadataSection = 1;
 
     pTicket->status.offset = 0;
     pTicket->status.length = 0;
+    pTicket->description.offset = 0;
+    pTicket->description.length = 0;
     pTicket->shortDescription.offset = 0;
     pTicket->shortDescription.length = 0;
+    pTicket->detailedDescription.offset = 0;
+    pTicket->detailedDescription.length = 0;
     pTicket->pMetadata = NULL;
     pTicket->metadataCount = 0;
     pTicket->hasMetadataSection = 0;
@@ -341,6 +351,7 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
     while (cursor < textLength) {
         text_range line;
         size_t lineOffset = cursor;
+        size_t nextLineOffset;
 
         while (cursor < textLength && pText[cursor] != '\n') {
             cursor += 1;
@@ -350,14 +361,35 @@ static int parse_ticket(const char* pText, size_t textLength, ticket* pTicket)
         if (cursor < textLength) {
             cursor += 1;
         }
+        nextLineOffset = cursor;
 
         if (line.length == 3 && memcmp(pText + line.offset, "---", 3) == 0) {
+            descriptionEnd = lineOffset;
             break;
         }
 
-        if (line.length > 0) {
+        if (line.length > 0 && pTicket->shortDescription.length == 0) {
             pTicket->shortDescription = line;
-            break;
+            pTicket->description.offset = line.offset;
+            pTicket->detailedDescription.offset = nextLineOffset;
+        }
+    }
+
+    if (pTicket->shortDescription.length > 0) {
+        while (descriptionEnd > pTicket->description.offset && (pText[descriptionEnd - 1] == ' '  || pText[descriptionEnd - 1] == '\t' || pText[descriptionEnd - 1] == '\r' || pText[descriptionEnd - 1] == '\n')) {
+            descriptionEnd -= 1;
+        }
+
+        pTicket->description.length = descriptionEnd - pTicket->description.offset;
+
+        while (pTicket->detailedDescription.offset < descriptionEnd && (pText[pTicket->detailedDescription.offset] == ' ' || pText[pTicket->detailedDescription.offset] == '\t' || pText[pTicket->detailedDescription.offset] == '\r' || pText[pTicket->detailedDescription.offset] == '\n')) {
+            pTicket->detailedDescription.offset += 1;
+        }
+
+        if (pTicket->detailedDescription.offset < descriptionEnd) {
+            pTicket->detailedDescription.length = descriptionEnd - pTicket->detailedDescription.offset;
+        } else {
+            pTicket->detailedDescription.offset = descriptionEnd;
         }
     }
 
@@ -1153,6 +1185,59 @@ static int show_ticket(const char* id)
     return 0;
 }
 
+static int show_ticket_description(const char* id, int descriptionPart)
+{
+    fs_result result;
+    char* pFilePath;
+    char* pFileData;
+    size_t fileDataSize;
+    ticket parsedTicket;
+    text_range range;
+
+    if (!is_ticket_id(id)) {
+        fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
+        return 1;
+    }
+
+    pFilePath = get_ticket_path(id, FS_NULL_TERMINATED);
+    if (pFilePath == NULL) {
+        fs_file_writef(STDERR, "Failed to construct ticket path.\n");
+        return 1;
+    }
+
+    result = read_text_file(pFilePath, &pFileData, &fileDataSize);
+    if (result != FS_SUCCESS) {
+        fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+        fs_file_writef(STDERR, "Failed to parse %s.\n", pFilePath);
+        return 1;
+    }
+
+    range = parsedTicket.description;
+    if (descriptionPart == 1) {
+        range = parsedTicket.shortDescription;
+    } else if (descriptionPart == 2) {
+        range = parsedTicket.detailedDescription;
+    }
+
+    if (range.length > 0) {
+        result = fs_file_write(STDOUT, pFileData + range.offset, range.length, NULL);
+        if (result == FS_SUCCESS) {
+            result = fs_file_write(STDOUT, "\n", 1, NULL);
+        }
+
+        if (result != FS_SUCCESS) {
+            fs_file_writef(STDERR, "Failed to write ticket description. %s.\n", fs_result_description(result));
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static int get_ticket_metadata(const char* id, const char* pKey)
 {
     fs_result result;
@@ -1722,6 +1807,23 @@ static int test_case_matches(const char* pCaseName, const char* pFilter)
     return strcmp(pCaseName, pFilter) == 0;
 }
 
+static int test_text_range_file(const char* pCaseName, const char* pFileName, const char* pText, text_range range)
+{
+    char* pExpectedPath = get_test_path(pCaseName, pFileName);
+    char* pExpected;
+    size_t expectedSize;
+
+    if (pExpectedPath == NULL || read_text_file(pExpectedPath, &pExpected, &expectedSize) != FS_SUCCESS) {
+        return 0;
+    }
+
+    if (range.length == 0) {
+        return expectedSize == 0;
+    }
+
+    return expectedSize == range.length + 1 && pExpected[expectedSize - 1] == '\n' && memcmp(pExpected, pText + range.offset, range.length) == 0;
+}
+
 static int run_parser_test(const char* pCaseName)
 {
     char* pScriptPath = get_test_path(pCaseName, "ticket");
@@ -1764,6 +1866,20 @@ static int run_parser_test(const char* pCaseName)
     if (memcmp(pExpected, pScript + parsedTicket.status.offset, parsedTicket.status.length) != 0 ||
         pExpected[parsedTicket.status.length] != '\n') {
         return 0;
+    }
+
+    {
+        char* pDescriptionPath = get_test_path(pCaseName, "description.txt");
+        fs_file* pDescriptionFile;
+
+        if (pDescriptionPath != NULL && fs_file_open(NULL, pDescriptionPath, FS_READ, &pDescriptionFile) == FS_SUCCESS) {
+            fs_file_close(pDescriptionFile);
+            if (!test_text_range_file(pCaseName, "description.txt",          pScript, parsedTicket.description) ||
+                !test_text_range_file(pCaseName, "short_description.txt",    pScript, parsedTicket.shortDescription) ||
+                !test_text_range_file(pCaseName, "detailed_description.txt", pScript, parsedTicket.detailedDescription)) {
+                return 0;
+            }
+        }
     }
 
     return parsedTicket.shortDescription.length == 0 ||
@@ -2038,6 +2154,30 @@ int main(int argc, char** argv)
         }
 
         return show_ticket(argv[argumentIndex + 1]);
+    }
+
+    if (strcmp(argv[argumentIndex], "description") == 0) {
+        int descriptionPart = 0;
+
+        if (argc < argumentIndex + 2 || argc > argumentIndex + 3) {
+            fs_file_writef(STDERR, "The description command requires one ticket ID and one optional selection.\n");
+            print_usage(argv[0]);
+            return 1;
+        }
+
+        if (argc == argumentIndex + 3) {
+            if (strcmp(argv[argumentIndex + 2], "--short") == 0) {
+                descriptionPart = 1;
+            } else if (strcmp(argv[argumentIndex + 2], "--detailed") == 0) {
+                descriptionPart = 2;
+            } else {
+                fs_file_writef(STDERR, "Unknown description option: %s.\n", argv[argumentIndex + 2]);
+                print_usage(argv[0]);
+                return 1;
+            }
+        }
+
+        return show_ticket_description(argv[argumentIndex + 1], descriptionPart);
     }
 
     if (strcmp(argv[argumentIndex], "edit") == 0) {

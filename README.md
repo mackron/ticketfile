@@ -76,6 +76,15 @@ ticket show 123
 ticket edit 123
 ```
 
+Use `description` to write the complete description without metadata or comments. Use `--short`
+or `--detailed` to select only one part:
+
+```
+ticket description 123
+ticket description 123 --short
+ticket description 123 --detailed
+```
+
 Use `get` to write one metadata value. A missing key writes no output and still returns success:
 
 ```
