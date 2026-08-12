@@ -190,7 +190,11 @@ async function setTicketStatus(ticketItem, ticketProvider)
     }
 
     const selected = await vscode.window.showQuickPick(
-        ticketProvider.statusGroups.map((group) => ({ label: group.label, status: group.status })),
+        ticketProvider.statusGroups.map((group) => ({
+            label: group.label,
+            description: group.status,
+            status: group.status
+        })),
         {
             title: "Set Ticket Status",
             placeHolder: "Select a status"
