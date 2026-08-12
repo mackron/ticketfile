@@ -54,8 +54,8 @@ Development checklist:
 - [x] Keep duplicate numeric ticket IDs distinct between ticket folders.
 - [x] Create and remove one file watcher for each configured ticket folder.
 - [x] Refresh when ticket-folder configuration changes.
-- [ ] Select or infer the target ticket folder when creating a ticket.
-- [ ] Verify filtering, counters, status changes, comments, and deletion across folders.
+- [x] Select or infer the target ticket folder when creating a ticket.
+- [x] Verify filtering, counters, status changes, comments, and deletion across folders.
 - [ ] Update VS Code extension documentation.
 - [ ] Run VS Code syntax and test checks.
 - [ ] Update release notes for ticket with "release-notes:1.1.0".

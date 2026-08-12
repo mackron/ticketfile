@@ -125,11 +125,6 @@ function isConfiguredStatus(status, groups)
     return groups.some((group) => group.status === status);
 }
 
-function getTicketsFolderPath()
-{
-    return loadTicketFolders(vscode.workspace.getConfiguration("ticketfile")).folders[0].path;
-}
-
 function readGitConfig(key, workingDirectory)
 {
     return new Promise((resolve) => {
@@ -181,7 +176,36 @@ function getCurrentDate()
     return `${year}-${month}-${day}`;
 }
 
-async function createTicket()
+async function selectTicketFolder(ticketFolders, selectedItem)
+{
+    if (selectedItem !== undefined && selectedItem.ticketFolder !== undefined) {
+        const selectedFolder = ticketFolders.find((folder) => folder.path === selectedItem.ticketFolder.path);
+
+        if (selectedFolder !== undefined) {
+            return selectedFolder;
+        }
+    }
+
+    if (ticketFolders.length === 1) {
+        return ticketFolders[0];
+    }
+
+    const selected = await vscode.window.showQuickPick(
+        ticketFolders.map((folder) => ({
+            label: folder.label,
+            description: folder.path,
+            ticketFolder: folder
+        })),
+        {
+            title: "Select Ticket Folder",
+            placeHolder: "Select a folder for the new ticket"
+        }
+    );
+
+    return selected === undefined ? undefined : selected.ticketFolder;
+}
+
+async function createTicket(ticketFolder)
 {
     const workspaceFolders = vscode.workspace.workspaceFolders;
 
@@ -190,7 +214,11 @@ async function createTicket()
         return;
     }
 
-    const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, getTicketsFolderPath());
+    if (ticketFolder === undefined) {
+        return;
+    }
+
+    const ticketsFolder = vscode.Uri.joinPath(workspaceFolders[0].uri, ticketFolder.path);
 
     try {
         await vscode.workspace.fs.createDirectory(ticketsFolder);
@@ -670,8 +698,11 @@ function activate(context)
         ticketProvider.setFilter("");
         updateFilterDisplay();
     });
-    const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", async () => {
-        await createTicket();
+    const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", async (selectedItem) => {
+        const inferredItem = selectedItem === undefined ? treeView.selection[0] : selectedItem;
+        const ticketFolder = await selectTicketFolder(ticketProvider.ticketFolders, inferredItem);
+
+        await createTicket(ticketFolder);
         updateTicketWatchers();
         ticketProvider.refresh();
     });
