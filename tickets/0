@@ -1,4 +1,4 @@
-status: open
+status: closed
 
 ---
 
@@ -30,3 +30,9 @@ This is a comment that can be added to the ticket for later updates.
 2026-07-12 - David Reid
 
 This is another comment that is added at a later date again.
+
+---
+
+2026-08-12 - David Reid
+
+Status changed from open to closed.
