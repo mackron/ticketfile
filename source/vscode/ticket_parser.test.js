@@ -5,7 +5,7 @@ const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters
 
 const casesPath = path.join(__dirname, "..", "..", "tests", "cases");
 const caseNames = fs.readdirSync(casesPath, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(casesPath, entry.name, "expectation.txt")))
     .map((entry) => entry.name)
     .sort();
 

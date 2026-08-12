@@ -105,7 +105,7 @@ CLI:
 
 VS Code:
 
-- [ ] Define settings for status groups and initial status.
+- [x] Define settings for status groups and initial status.
 - [ ] Add configuration validation and duplicate status detection.
 - [ ] Load user or workspace group configuration in its specified order.
 - [ ] Refresh the ticket tree after relevant configuration changes.

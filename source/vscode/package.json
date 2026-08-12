@@ -159,6 +159,50 @@
                     "type": "string",
                     "default": "tickets",
                     "description": "Path to the tickets folder, relative to the first folder in the workspace."
+                },
+                "ticketfile.statusGroups": {
+                    "type": "array",
+                    "default": [
+                        {
+                            "label": "Open",
+                            "status": "open",
+                            "expanded": true
+                        },
+                        {
+                            "label": "Closed",
+                            "status": "closed",
+                            "expanded": false
+                        }
+                    ],
+                    "description": "Ticket groups in display order. Workspace settings replace the complete user list.",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "label",
+                            "status",
+                            "expanded"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "description": "Group label shown in the ticket tree."
+                            },
+                            "status": {
+                                "type": "string",
+                                "description": "Exact ticket status mapped to this group."
+                            },
+                            "expanded": {
+                                "type": "boolean",
+                                "description": "Whether the group is expanded when the ticket tree is created."
+                            }
+                        }
+                    }
+                },
+                "ticketfile.initialStatus": {
+                    "type": "string",
+                    "default": "open",
+                    "description": "Status for new tickets. Use an empty string to create tickets without status metadata."
                 }
             }
         }
