@@ -117,7 +117,7 @@ VS Code:
 - [x] Update status metadata and add the applicable history message.
 - [x] Use configured initial status when creating a ticket.
 - [x] Add tests for configuration validation and defaults.
-- [ ] Add tests for group order, collapsed state, and status mapping.
+- [x] Add tests for group order, collapsed state, and status mapping.
 - [ ] Add tests for Uncategorized fallback.
 - [ ] Add tests for status selection and status updates.
 - [ ] Add tests for ticket initial status and configuration refresh.

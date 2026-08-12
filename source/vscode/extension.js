@@ -1,6 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
-const { loadStatusGroups } = require("./ticket_configuration");
+const { createStatusGroupDefinitions, isConfiguredStatus, loadStatusGroups } = require("./ticket_configuration");
 const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 function getTicketsFolderPath()
@@ -370,7 +370,7 @@ class TicketProvider
     async getChildren(element)
     {
         if (element === undefined) {
-            const groups = this.statusGroups.map((group) => new TicketGroup(
+            const groups = createStatusGroupDefinitions(this.statusGroups).map((group) => new TicketGroup(
                 group.label,
                 group.status,
                 group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
@@ -388,10 +388,8 @@ class TicketProvider
 
         if (element instanceof TicketGroup) {
             const tickets = await this.getTickets();
-            const configuredStatuses = new Set(this.statusGroups.map((group) => group.status));
-
             if (element.isFallback) {
-                return tickets.filter((ticket) => !configuredStatuses.has(ticket.status));
+                return tickets.filter((ticket) => !isConfiguredStatus(ticket.status, this.statusGroups));
             }
 
             return tickets.filter((ticket) => ticket.status === element.status);

@@ -61,7 +61,23 @@ function loadStatusGroups(configuration)
     };
 }
 
+function createStatusGroupDefinitions(groups)
+{
+    return groups.map((group) => ({
+        label: group.label,
+        status: group.status,
+        expanded: group.expanded
+    }));
+}
+
+function isConfiguredStatus(status, groups)
+{
+    return groups.some((group) => group.status === status);
+}
+
 module.exports = {
+    createStatusGroupDefinitions,
+    isConfiguredStatus,
     loadStatusGroups,
     validateStatusGroups
 };

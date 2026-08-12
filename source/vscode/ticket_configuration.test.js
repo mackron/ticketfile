@@ -1,6 +1,11 @@
 const assert = require("assert");
 const manifest = require("./package.json");
-const { loadStatusGroups, validateStatusGroups } = require("./ticket_configuration");
+const {
+    createStatusGroupDefinitions,
+    isConfiguredStatus,
+    loadStatusGroups,
+    validateStatusGroups
+} = require("./ticket_configuration");
 
 const manifestDefault = manifest.contributes.configuration.properties["ticketfile.statusGroups"].default;
 
@@ -42,6 +47,13 @@ assert.deepStrictEqual(loadStatusGroups(configuration({
 assert.deepStrictEqual(loadStatusGroups(configuration({
     defaultValue: manifestDefault
 })).groups, manifestDefault);
+
+assert.deepStrictEqual(createStatusGroupDefinitions(userGroups), [
+    { label: "Review", status: "review", expanded: true },
+    { label: "Done", status: "done", expanded: false }
+]);
+assert.strictEqual(isConfiguredStatus("review", userGroups), true);
+assert.strictEqual(isConfiguredStatus("done", userGroups), true);
 
 const invalidConfiguration = loadStatusGroups(configuration({
     defaultValue: manifestDefault,
