@@ -45,6 +45,37 @@ This was caused by incorrect tab ordering in the login form.
 See [Ticket 0](tickets/0) for an example and a more complete description on the (optional) formatting supported by the tools in this repository.
 
 
+## CLI Usage
+
+Use `get` to write one metadata value. A missing key writes no output and still
+returns success:
+
+```
+ticket get 123 status
+```
+
+Use `set` to add or replace one or more metadata values atomically. Quote an argument when its
+value contains spaces:
+
+```
+ticket set 123 status:review "assignee:David Reid"
+```
+
+When an existing status changes, `set` adds a dated history entry. Use `--no-comment` as the final
+argument to suppress this entry:
+
+```
+ticket set 123 status:review --no-comment
+```
+
+Use `clear` to remove one or more metadata values atomically. Clearing a status does not add a
+history entry:
+
+```
+ticket clear 123 status assignee
+```
+
+
 ## Installing
 
 Download the archive for your operating system from the GitHub Releases page.
