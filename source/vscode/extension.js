@@ -335,11 +335,19 @@ class TicketProvider
     async getChildren(element)
     {
         if (element === undefined) {
-            return [
-                new TicketGroup("Open", "open", vscode.TreeItemCollapsibleState.Expanded),
-                new TicketGroup("Closed", "closed", vscode.TreeItemCollapsibleState.Collapsed),
-                new TicketGroup("Uncategorized", "uncategorized", vscode.TreeItemCollapsibleState.Collapsed)
-            ];
+            const groups = this.statusGroups.map((group) => new TicketGroup(
+                group.label,
+                group.status,
+                group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+            ));
+
+            groups.push(new TicketGroup(
+                "Uncategorized",
+                "uncategorized",
+                vscode.TreeItemCollapsibleState.Collapsed
+            ));
+
+            return groups;
         }
 
         if (element instanceof TicketGroup) {
