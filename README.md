@@ -1,6 +1,10 @@
-This repository contains tools for working with tickets in human editable plain text files. It includes a VS Code extension for humans, and a CLI which is mostly useful for clankers. Humans would typically just edit ticket files in a normal text editor or through the VS Code extension.
+This repository contains tools for working with tickets in human editable plain text files. It
+includes a VS Code extension for humans, and a CLI which is mostly useful for clankers. Humans
+would typically edit ticket files in a normal text editor or through the VS Code extension.
 
-Tickets go into a sub-folder (defaults to "tickets"), with each one named with the ticket's numeric ID. See the "tickets" folder in this repository for an example. Tickets are simple and plain text, with optional metadata at the top. Below is a typical example of what I use in my projects:
+Tickets go into a sub-folder (defaults to "tickets"), with each one named with the ticket's numeric
+ID. See the "tickets" folder in this repository for an example. Tickets are simple plain text, with
+optional metadata at the top. Below is a typical example of what I use in my projects:
 
 ```
 status: open
@@ -13,7 +17,9 @@ If the user hits tab from the username field, it puts keyboard focus on
 the "Login" button instead of the password field.
 ```
 
-The tools in this repository will recognize the "status" metadata at the top and categorize it appropriately. The recognized statuses are "open" and "closed". Metadata is optional. A ticket could also look like this:
+The tools in this repository recognize the "status" metadata at the top and categorize it
+appropriately. The recognized statuses are "open" and "closed". Metadata is optional. A ticket
+could also look like this:
 
 ```
 Possible null pointer dereference when loading a file.
@@ -21,7 +27,7 @@ Possible null pointer dereference when loading a file.
 
 In this example there is no metadata and no detailed description. This is still valid.
 
-The first line in the description is considered the short description and will be what's displayed by tools.
+The first line in the description is the short description that tools display.
 
 Comments can be added by just separating them with "---":
 
@@ -42,13 +48,13 @@ the "Login" button instead of the password field.
 This was caused by incorrect tab ordering in the login form.
 ```
 
-See [Ticket 0](tickets/0) for an example and a more complete description on the (optional) formatting supported by the tools in this repository.
+See [Ticket 0](tickets/0) for an example and a more complete description of the optional formatting
+that the tools support.
 
 
 ## CLI Usage
 
-Use `get` to write one metadata value. A missing key writes no output and still
-returns success:
+Use `get` to write one metadata value. A missing key writes no output and still returns success:
 
 ```
 ticket get 123 status
@@ -94,7 +100,8 @@ code --install-extension ticketfile-<version>.vsix
 
 ## Building
 
-For the CLI, just compile source/cli/ticketfile.c or use CMake. The VS Code extension is in source/vscode.
+For the CLI, compile `source/cli/ticketfile.c` or use CMake. The VS Code extension is in
+`source/vscode`.
 
 To package the VS Code extension, install Node.js and run:
 
@@ -103,29 +110,33 @@ cd source/vscode
 npm run package
 ```
 
-The command creates `ticketfile-<version>.vsix` in `build/vscode`. It reads the version from `source/ticketfile_version.h`, copies the extension README and root license into a temporary package, and removes temporary files when it finishes. The packaging tool can be downloaded by `npx` when it is not already installed.
+The command creates `ticketfile-<version>.vsix` in `build/vscode`. It reads the version from
+`source/ticketfile_version.h`, copies the extension README and root license into a temporary
+package, and removes temporary files when it finishes. The packaging tool can be downloaded by
+`npx` when it is not already installed.
 
-Update the three macros in `source/ticketfile_version.h` for a release. CMake, the CLI, and the extension packaging script all use this version. The packaging script also updates the version stored in `source/vscode/package.json`.
+Update the three macros in `source/ticketfile_version.h` for a release. CMake, the CLI, and the
+extension packaging script all use this version. The packaging script also updates the version in
+`source/vscode/package.json`.
 
 
 ## Releasing
 
-Update the version macros in `source/ticketfile_version.h`, commit the change,
-and push `master`. Then run:
+Update the version macros in `source/ticketfile_version.h`, commit the change, and push `master`.
+Then run:
 
 ```
 node release.js
 ```
 
-The script requires a clean working tree and a local `master` that matches
-`origin/master`. It downloads current tags and requires a successful GitHub
-Build workflow for the current commit. It then confirms that the header version
-is newer than all existing release tags and asks for confirmation. Finally, it
-creates and pushes an annotated `v<major>.<minor>.<patch>` tag. The tag starts
-GitHub release automation.
+The script requires a clean working tree and a local `master` that matches `origin/master`. It
+downloads current tags and requires a successful GitHub Build workflow for the current commit. It
+then confirms that the header version is newer than all existing release tags and asks for
+confirmation. Finally, it creates and pushes an annotated `v<major>.<minor>.<patch>` tag. The tag
+starts GitHub release automation.
 
-The CI check uses the GitHub API. Set `GITHUB_TOKEN` if API authentication is
-required or if the unauthenticated API rate limit is too low.
+The CI check uses the GitHub API. Set `GITHUB_TOKEN` if API authentication is required or if the
+unauthenticated API rate limit is too low.
 
 Use `node release.js --check` to validate the release without creating a tag.
 Use `node release.js --yes` to skip the confirmation prompt.
