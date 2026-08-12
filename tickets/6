@@ -1,4 +1,4 @@
-status: open
+status: closed
 version: 1.1.0
 
 ---
@@ -35,4 +35,10 @@ Development Checklist:
 - [x] Add extraction tests for valid and invalid release-note tickets.
 - [x] Update the GitHub release workflow to use `--write-notes` and `--notes-file`.
 - [x] Document the release-note ticket format and release process.
-- [ ] Run release validation and relevant test suites.
+- [x] Run release validation and relevant test suites.
+
+---
+
+2026-08-12 - David Reid
+
+Status changed from open to closed.
