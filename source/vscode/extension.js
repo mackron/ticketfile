@@ -150,12 +150,12 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
         const text = Buffer.from(fileData).toString("utf8");
         const parsedTicket = parseTicket(text);
         const statusRange = findStatusRange(text);
+        const oldStatus = statusRange === undefined ? undefined : text.substring(statusRange.offset, statusRange.offset + statusRange.length);
 
-        if (statusRange !== undefined && text.substring(statusRange.offset, statusRange.offset + statusRange.length) === status) {
+        if (oldStatus === status) {
             return;
         }
 
-        const author = await getCommentAuthor();
         let updatedStatusText;
 
         if (statusRange !== undefined) {
@@ -167,14 +167,23 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
         } else {
             updatedStatusText = `status: ${status}\n\n---\n\n${text}`;
         }
-        const separator = updatedStatusText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
-        const historyEntry = `${separator}${getCurrentDate()} - ${author}\n\nChanged status to ${status}.\n`;
-        const updatedText = updatedStatusText + historyEntry;
+
+        let updatedText = updatedStatusText;
+        let author;
+
+        if (oldStatus !== undefined) {
+            author = await getCommentAuthor();
+
+            const separator = updatedStatusText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
+            const historyEntry = `${separator}${getCurrentDate()} - ${author}\n\nStatus changed from ${oldStatus} to ${status}.\n`;
+
+            updatedText += historyEntry;
+        }
 
         await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
         ticketProvider.refresh();
 
-        if (author === "<Insert Name>") {
+        if (oldStatus !== undefined && author === "<Insert Name>") {
             vscode.window.showWarningMessage("Status was changed without an author name.");
         }
     } catch (error) {

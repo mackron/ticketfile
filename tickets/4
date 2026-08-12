@@ -114,7 +114,7 @@ VS Code:
 - [x] Preserve current Open and Closed behavior in default settings.
 - [x] Replace Close and Reopen actions with "Set Status...".
 - [x] Show configured statuses in a selection list.
-- [ ] Update status metadata and add the applicable history message.
+- [x] Update status metadata and add the applicable history message.
 - [ ] Use configured initial status when creating a ticket.
 - [ ] Add tests for configuration validation and defaults.
 - [ ] Add tests for group order, collapsed state, and status mapping.
