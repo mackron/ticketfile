@@ -25,3 +25,5 @@ Release Notes - v1.1.0
 - Added a permanent Uncategorized group for missing and unmapped statuses.
 - Replaced Close and Reopen actions with a general Set Status action.
 - Added ticket counters to status groups.
+- Added support for multiple ticket folders in one project.
+- Added folder-based ticket grouping and folder selection when creating tickets.

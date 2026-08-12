@@ -57,5 +57,5 @@ Development checklist:
 - [x] Select or infer the target ticket folder when creating a ticket.
 - [x] Verify filtering, counters, status changes, comments, and deletion across folders.
 - [x] Update VS Code extension documentation.
-- [ ] Update release notes for ticket with "release-notes:1.1.0".
+- [x] Update release notes for ticket with "release-notes:1.1.0".
 - [ ] Run VS Code syntax and test checks.
