@@ -110,7 +110,7 @@ VS Code:
 - [x] Load user or workspace group configuration in its specified order.
 - [x] Refresh the ticket tree after relevant configuration changes.
 - [x] Build ticket groups from configuration instead of fixed statuses.
-- [ ] Map missing and unknown statuses to Uncategorized.
+- [x] Map missing and unknown statuses to Uncategorized.
 - [ ] Preserve current Open and Closed behavior in default settings.
 - [ ] Replace Close and Reopen actions with "Set Status...".
 - [ ] Show configured statuses in a selection list.

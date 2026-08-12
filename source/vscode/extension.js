@@ -265,11 +265,12 @@ async function deleteTicket(ticketItem, ticketProvider)
 
 class TicketGroup extends vscode.TreeItem
 {
-    constructor(label, status, collapsibleState)
+    constructor(label, status, collapsibleState, isFallback = false)
     {
         super(label, collapsibleState);
 
         this.status = status;
+        this.isFallback = isFallback;
     }
 }
 
@@ -343,8 +344,9 @@ class TicketProvider
 
             groups.push(new TicketGroup(
                 "Uncategorized",
-                "uncategorized",
-                vscode.TreeItemCollapsibleState.Collapsed
+                undefined,
+                vscode.TreeItemCollapsibleState.Collapsed,
+                true
             ));
 
             return groups;
@@ -352,6 +354,11 @@ class TicketProvider
 
         if (element instanceof TicketGroup) {
             const tickets = await this.getTickets();
+            const configuredStatuses = new Set(this.statusGroups.map((group) => group.status));
+
+            if (element.isFallback) {
+                return tickets.filter((ticket) => !configuredStatuses.has(ticket.status));
+            }
 
             return tickets.filter((ticket) => ticket.status === element.status);
         }
@@ -383,7 +390,7 @@ class TicketProvider
             }
 
             const fileUri = vscode.Uri.joinPath(ticketsFolder, fileName);
-            let status = "uncategorized";
+            let status;
             let title;
             let diagnostic;
 
@@ -396,7 +403,7 @@ class TicketProvider
                         continue;
                     }
 
-                    status = parsedTicket.status === "open" || parsedTicket.status === "closed" ? parsedTicket.status : "uncategorized";
+                    status = parsedTicket.status;
                     title = parsedTicket.title;
                 } catch (error) {
                     diagnostic = "File could not be read.";
