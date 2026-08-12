@@ -100,7 +100,7 @@ CLI:
 - [x] Add tests for multiple metadata changes and atomic failure.
 - [x] Add tests for invalid and duplicate metadata arguments.
 - [x] Add tests for spaces and additional colons in values.
-- [ ] Add tests for status history and "--no-comment".
+- [x] Add tests for status history and "--no-comment".
 - [ ] Add tests for unchanged statuses and compatibility aliases.
 
 VS Code:

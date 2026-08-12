@@ -1,0 +1,11 @@
+status: review
+
+---
+
+Status history test.
+
+---
+
+<COMMENT_HEADER>
+
+Status changed from open to review.

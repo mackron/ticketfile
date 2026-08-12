@@ -1930,6 +1930,35 @@ static int run_metadata_command_test(const char* pCaseName)
         return 0;
     }
 
+    {
+        static const char placeholder[] = "<COMMENT_HEADER>";
+        char* pPlaceholder = strstr(pExpectedData, placeholder);
+
+        if (pPlaceholder != NULL) {
+            char* pCommentHeader;
+            size_t commentHeaderLength;
+            int authorFound;
+            text_range placeholderRange;
+            char* pExpandedExpectedData;
+            size_t expandedExpectedDataSize;
+
+            pCommentHeader = create_comment_header(&commentHeaderLength, &authorFound);
+            if (pCommentHeader == NULL) {
+                return 0;
+            }
+
+            placeholderRange.offset = (size_t)(pPlaceholder - pExpectedData);
+            placeholderRange.length = sizeof(placeholder) - 1;
+            pExpandedExpectedData = replace_text_range(pExpectedData, expectedDataSize, placeholderRange, pCommentHeader, commentHeaderLength, &expandedExpectedDataSize);
+            if (pExpandedExpectedData == NULL) {
+                return 0;
+            }
+
+            pExpectedData = pExpandedExpectedData;
+            expectedDataSize = expandedExpectedDataSize;
+        }
+    }
+
     while (cursor < commandDataSize) {
         size_t lineStart = cursor;
 
