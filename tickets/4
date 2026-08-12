@@ -1,4 +1,5 @@
-status: open
+status: closed
+version: 1.1.0
 
 ---
 
@@ -122,4 +123,10 @@ General:
 - [x] Document status group settings, scopes, replacement behavior, and examples.
 - [x] Remove Close and Reopen commands from user documentation.
 - [x] Check all documentation for assumptions that only Open and Closed statuses exist.
-- [ ] Run all CLI and VS Code tests.
+- [x] Run all CLI and VS Code tests.
+
+---
+
+2026-08-12 - David Reid
+
+Changed status to closed.
