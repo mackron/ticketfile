@@ -359,12 +359,13 @@ async function deleteTicket(ticketItem, ticketProvider)
 
 class TicketGroup extends vscode.TreeItem
 {
-    constructor(label, status, collapsibleState, isFallback = false)
+    constructor(label, status, count, collapsibleState, isFallback = false)
     {
         super(label, collapsibleState);
 
         this.status = status;
         this.isFallback = isFallback;
+        this.description = count.toString();
     }
 }
 
@@ -402,10 +403,12 @@ class TicketProvider
         this.filterText = "";
         this.filters = [];
         this.statusGroups = statusGroups;
+        this.ticketPromise = undefined;
     }
 
     refresh()
     {
+        this.ticketPromise = undefined;
         this.changeTreeDataEmitter.fire(undefined);
     }
 
@@ -430,15 +433,18 @@ class TicketProvider
     async getChildren(element)
     {
         if (element === undefined) {
+            const tickets = await this.getTickets();
             const groups = this.statusGroups.map((group) => new TicketGroup(
                 group.label,
                 group.status,
+                tickets.filter((ticket) => ticket.status === group.status).length,
                 group.expanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
             ));
 
             groups.push(new TicketGroup(
                 "Uncategorized",
                 undefined,
+                tickets.filter((ticket) => !isConfiguredStatus(ticket.status, this.statusGroups)).length,
                 vscode.TreeItemCollapsibleState.Collapsed,
                 true
             ));
@@ -459,6 +465,15 @@ class TicketProvider
     }
 
     async getTickets()
+    {
+        if (this.ticketPromise === undefined) {
+            this.ticketPromise = this.loadTickets();
+        }
+
+        return this.ticketPromise;
+    }
+
+    async loadTickets()
     {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const tickets = [];

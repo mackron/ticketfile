@@ -116,6 +116,7 @@ VS Code:
 - [x] Show configured statuses in a selection list.
 - [x] Update status metadata and add the applicable history message.
 - [x] Use configured initial status when creating a ticket.
+- [x] Show a filtered ticket count beside each status group.
 
 General:
 
