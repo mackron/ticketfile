@@ -163,8 +163,28 @@ extension packaging script all use this version. The packaging script also updat
 
 ## Releasing
 
-Update the version macros in `source/ticketfile_version.h`, commit the change, and push `master`.
-Then run:
+Create one ticket with `release-notes:<version>` metadata for the release version without the `v`
+tag prefix:
+
+```text
+status: open
+release-notes: 1.1.0
+
+---
+
+Release Notes - v1.1.0
+
+## General
+
+- Describe a user-facing change.
+```
+
+The first description line is the ticket short description. It is not part of the published notes.
+Write curated release notes as Markdown after that line. Ticket comments after the next `---`
+separator are also not published.
+
+Update the version macros in `source/ticketfile_version.h`, commit the release-note ticket and
+version change, and push `master`. Then run:
 
 ```
 node release.js
@@ -172,15 +192,17 @@ node release.js
 
 The script requires a clean working tree and a local `master` that matches `origin/master`. It
 downloads current tags and requires a successful GitHub Build workflow for the current commit. It
-then confirms that the header version is newer than all existing release tags and asks for
-confirmation. Finally, it creates and pushes an annotated `v<major>.<minor>.<patch>` tag. The tag
-starts GitHub release automation.
+requires exactly one non-empty release-note ticket for the header version. It then confirms that
+the header version is newer than all existing release tags and asks for confirmation. Finally, it
+creates and pushes an annotated `v<major>.<minor>.<patch>` tag. GitHub automation extracts the same
+ticket body and publishes it with release files.
 
 The CI check uses the GitHub API. Set `GITHUB_TOKEN` if API authentication is required or if the
 unauthenticated API rate limit is too low.
 
 Use `node release.js --check` to validate the release without creating a tag.
 Use `node release.js --yes` to skip the confirmation prompt.
+Use `node release.js --write-notes <path>` to inspect extracted notes for the header version.
 
 
 ## License
