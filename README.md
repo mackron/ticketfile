@@ -54,6 +54,28 @@ that the tools support.
 
 ## CLI Usage
 
+Run `ticket` without arguments to show command usage. Tickets are read from the `tickets`
+directory by default. Use `-d` or `--directory` before a command to select another directory:
+
+```
+ticket --directory path/to/tickets list
+```
+
+Use `list` to show all tickets. Add metadata filters to show tickets that match every valid
+filter:
+
+```
+ticket list status:review "assignee:David Reid"
+```
+
+Use `show` to write a complete ticket to standard output, or `edit` to open it in `VISUAL`,
+`EDITOR`, or the default editor:
+
+```
+ticket show 123
+ticket edit 123
+```
+
 Use `get` to write one metadata value. A missing key writes no output and still returns success:
 
 ```
@@ -81,17 +103,36 @@ history entry:
 ticket clear 123 status assignee
 ```
 
+Use `new` without arguments to create an open ticket in an editor. Use `-m` or `--message` to
+create one from an inline description:
+
+```
+ticket new --message "Fix incorrect tab order."
+```
+
+Use `-F` or `--file` to read the description from a file:
+
+```
+ticket new --file description.txt
+```
+
+Use `comment` to open an editor and append a dated comment:
+
+```
+ticket comment 123
+```
+
+Use `-h` or `--help` to show command usage. Use `-v` or `--version` to show version information.
+
 
 ## Installing
 
-Download the archive for your operating system from the GitHub Releases page.
-Extract `ticket` (`ticket.exe` on Windows), and put it in a directory listed in
-your `PATH`.
+Download the archive for your operating system from the GitHub Releases page. Extract
+`ticket` (`ticket.exe` on Windows), and put it in a directory listed in your `PATH`.
 
-To install the VS Code extension, download the `.vsix` file from the same
-release. In VS Code, open the Extensions view, select **Views and More
-Actions**, and then select **Install from VSIX**. You can also install it from a
-terminal:
+To install the VS Code extension, download the `.vsix` file from the same release. In VS Code, open
+the Extensions view, select **Views and More Actions**, and then select **Install from VSIX**. You
+can also install it from a terminal:
 
 ```
 code --install-extension ticketfile-<version>.vsix
