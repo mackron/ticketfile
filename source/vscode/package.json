@@ -140,10 +140,33 @@
         "configuration": {
             "title": "Ticket Explorer",
             "properties": {
-                "ticketfile.ticketsFolder": {
-                    "type": "string",
-                    "default": "tickets",
-                    "description": "Path to the tickets folder, relative to the first folder in the workspace."
+                "ticketfile.ticketFolders": {
+                    "type": "array",
+                    "default": [
+                        {
+                            "label": "Tickets",
+                            "path": "tickets"
+                        }
+                    ],
+                    "description": "Ticket folders in display order. Paths are relative to the first folder in the workspace.",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "label",
+                            "path"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "description": "Folder label shown in the ticket tree."
+                            },
+                            "path": {
+                                "type": "string",
+                                "description": "Path relative to the first folder in the workspace."
+                            }
+                        }
+                    }
                 },
                 "ticketfile.statusGroups": {
                     "type": "array",

@@ -1,0 +1,61 @@
+status: open
+
+---
+
+Support multiple ticket folders in Visual Studio Code.
+
+The VS Code extension currently supports one ticket directory in the first workspace folder. It
+should allow one project to configure multiple ticket directories. For example, a project could
+use both `tickets` and `tickets/private`.
+
+The configuration should contain an ordered list of ticket folders. Each item should have a label
+and a path relative to the first workspace folder. For example:
+
+    "ticketfile.ticketFolders": [
+        {
+            "label": "Tickets",
+            "path": "tickets"
+        },
+        {
+            "label": "Private",
+            "path": "tickets/private"
+        }
+    ]
+
+When more than one ticket folder is configured, the tree should have one top-level item for each
+configured folder. Status groups and tickets should appear below it. Folder order should follow
+configuration order. When only one folder is configured, the extension should keep the current
+tree layout without an extra ticket-folder level.
+
+Ticket IDs can overlap between configured folders. Folder ownership should remain attached to each
+group and ticket item so actions always use the correct path.
+
+Creating a ticket should use the selected ticket-folder item when one is available. If no target
+can be inferred and more than one ticket folder is configured, the extension should ask the user
+to select a ticket folder.
+
+Each configured ticket folder should have its own file watcher. File changes, filtering, counters,
+status changes, comments, deletion, and automatic refresh should work for all configured folders.
+
+The existing `ticketfile.ticketsFolder` setting should be removed. The default `ticketFolders`
+configuration should contain one folder with the label `Tickets` and the path `tickets`.
+
+Ticket folder paths must not be empty or duplicated. Multi-root workspace support is not part of
+this work item. All configured paths are relative to the first workspace folder.
+
+Development checklist:
+
+- [x] Define the `ticketfile.ticketFolders` setting with label and path fields.
+- [ ] Validate empty labels, empty paths, and duplicate paths.
+- [ ] Add ticket-folder ownership to status groups and ticket items.
+- [ ] Add a ticket-folder tree level when multiple folders are configured.
+- [ ] Preserve the current tree layout when one folder is configured.
+- [ ] Load and group tickets from every configured ticket folder.
+- [ ] Keep duplicate numeric ticket IDs distinct between ticket folders.
+- [ ] Create and remove one file watcher for each configured ticket folder.
+- [ ] Refresh when ticket-folder configuration changes.
+- [ ] Select or infer the target ticket folder when creating a ticket.
+- [ ] Verify filtering, counters, status changes, comments, and deletion across folders.
+- [ ] Update VS Code extension documentation.
+- [ ] Run VS Code syntax and test checks.
+- [ ] Update release notes for ticket with "release-notes:1.1.0".
