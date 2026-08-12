@@ -1,0 +1,38 @@
+status: open
+version: 1.1.0
+
+---
+
+Publish curated release notes from tickets.
+
+The GitHub release workflow currently uses automatically generated release notes. It should
+instead publish curated Markdown stored in a ticket which has a `release-notes:<version>` metadata
+item.
+
+For a tag such as `v1.1.0`, the workflow should find exactly one ticket which has:
+
+    release-notes: 1.1.0
+
+The first description line is the ticket short description and should not be included in the
+GitHub release body. All description content after that line should be copied without modification
+to a Markdown notes file. Ticket comments after the next `---` separator should not be included.
+
+The release must fail before publication when no matching ticket exists, more than one matching
+ticket exists, or the extracted release body is empty.
+
+The publish job should pass the extracted file to `gh release create` with `--notes-file` instead
+of `--generate-notes`. Existing version validation, release title, assets, and tag verification
+should remain unchanged.
+
+
+Development Checklist:
+
+- [x] Add release-note extraction to `release.js`.
+- [x] Match the release ticket by exact `release-notes:<version>` metadata.
+- [x] Require exactly one matching release ticket.
+- [x] Exclude the short description and ticket comments from extracted Markdown.
+- [x] Reject an empty extracted release body.
+- [ ] Add extraction tests for valid and invalid release-note tickets.
+- [ ] Update the GitHub release workflow to use `--write-notes` and `--notes-file`.
+- [ ] Document the release-note ticket format and release process.
+- [ ] Run release validation and relevant test suites.

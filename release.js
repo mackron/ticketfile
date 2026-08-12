@@ -6,11 +6,12 @@ const readline = require("readline");
 
 const repositoryDirectory = __dirname;
 const versionHeaderPath = path.join(repositoryDirectory, "source", "ticketfile_version.h");
+const ticketsDirectory = path.join(repositoryDirectory, "tickets");
 
 function printUsage()
 {
     console.log("USAGE:");
-    console.log("    node release.js [--check | --yes]");
+    console.log("    node release.js [--check | --yes | --write-notes <path>]");
     console.log("");
     console.log("OPTIONS:");
     console.log("    --check");
@@ -18,6 +19,9 @@ function printUsage()
     console.log("");
     console.log("    --yes");
     console.log("        Create and push the tag without a confirmation prompt.");
+    console.log("");
+    console.log("    --write-notes <path>");
+    console.log("        Write curated release notes for the current version.");
     console.log("");
     console.log("    -h, --help");
     console.log("        Show this help text.");
@@ -71,6 +75,106 @@ function parseVersionTag(tag)
     }
 
     return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function findTicketSeparator(text, start)
+{
+    let cursor = start;
+
+    while (cursor < text.length) {
+        const lineStart = cursor;
+
+        while (cursor < text.length && text[cursor] !== "\n") {
+            cursor += 1;
+        }
+
+        const lineEnd = cursor;
+        if (text.substring(lineStart, lineEnd).trim() === "---") {
+            return { lineStart, nextLine: cursor < text.length ? cursor + 1 : cursor };
+        }
+
+        cursor += 1;
+    }
+
+    return undefined;
+}
+
+function readTicketMetadata(text, end)
+{
+    const metadata = new Map();
+
+    for (const line of text.substring(0, end).split(/\r?\n/)) {
+        const separator = line.indexOf(":");
+
+        if (separator >= 0) {
+            metadata.set(line.substring(0, separator).trim(), line.substring(separator + 1).trim());
+        }
+    }
+
+    return metadata;
+}
+
+function extractReleaseBody(text)
+{
+    const metadataSeparator = findTicketSeparator(text, 0);
+    if (metadataSeparator === undefined) {
+        throw new Error("Release-note ticket has no metadata separator.");
+    }
+
+    const commentSeparator = findTicketSeparator(text, metadataSeparator.nextLine);
+    const descriptionEnd = commentSeparator === undefined ? text.length : commentSeparator.lineStart;
+    const description = text.substring(metadataSeparator.nextLine, descriptionEnd);
+    const shortDescription = /\S.*(?:\r?\n|$)/.exec(description);
+
+    if (shortDescription === null) {
+        throw new Error("Release-note ticket has no short description.");
+    }
+
+    const bodyStart = shortDescription.index + shortDescription[0].length;
+    const body = description.substring(bodyStart).replace(/^(?:[ \t]*\r?\n)+/, "").replace(/\s+$/, "");
+
+    if (body === "") {
+        throw new Error("Release-note ticket has an empty release body.");
+    }
+
+    return body + "\n";
+}
+
+function getReleaseNotes(versionText)
+{
+    const matches = [];
+
+    for (const name of fs.readdirSync(ticketsDirectory)) {
+        if (!/^\d+$/.test(name)) {
+            continue;
+        }
+
+        const ticketPath = path.join(ticketsDirectory, name);
+        const text = fs.readFileSync(ticketPath, "utf8");
+        const metadataSeparator = findTicketSeparator(text, 0);
+
+        if (metadataSeparator !== undefined &&
+            readTicketMetadata(text, metadataSeparator.lineStart).get("release-notes") === versionText) {
+            matches.push(text);
+        }
+    }
+
+    if (matches.length === 0) {
+        throw new Error("No release-note ticket exists for version " + versionText + ".");
+    }
+    if (matches.length > 1) {
+        throw new Error("Multiple release-note tickets exist for version " + versionText + ".");
+    }
+
+    return extractReleaseBody(matches[0]);
+}
+
+function writeReleaseNotes(versionText, outputPath)
+{
+    const notes = getReleaseNotes(versionText);
+
+    fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
+    fs.writeFileSync(outputPath, notes, "utf8");
 }
 
 function runGit(arguments, allowFailure)
@@ -240,22 +344,31 @@ async function main()
     const checkOnly = arguments.length === 1 && arguments[0] === "--check";
     const skipConfirmation = arguments.length === 1 && arguments[0] === "--yes";
     const printVersion = arguments.length === 1 && arguments[0] === "--print-version";
+    const writeNotes = arguments.length === 2 && arguments[0] === "--write-notes";
 
     if (arguments.length === 1 && (arguments[0] === "-h" || arguments[0] === "--help")) {
         printUsage();
         return;
     }
 
-    if (arguments.length > 1 || (arguments.length === 1 && !checkOnly && !skipConfirmation && !printVersion)) {
+    if ((!writeNotes && arguments.length > 1) ||
+        (arguments.length === 1 && !checkOnly && !skipConfirmation && !printVersion)) {
         printUsage();
         throw new Error("Invalid command-line options.");
     }
 
     const version = readVersion();
+    const versionText = formatVersion(version);
     if (printVersion) {
-        console.log(formatVersion(version));
+        console.log(versionText);
         return;
     }
+    if (writeNotes) {
+        writeReleaseNotes(versionText, arguments[1]);
+        return;
+    }
+
+    getReleaseNotes(versionText);
 
     const release = validateRelease(version);
     const tag = release.tag;
