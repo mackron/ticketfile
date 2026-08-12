@@ -1,4 +1,4 @@
-status: open
+status: closed
 release-notes: 1.1.0
 
 ---
@@ -28,3 +28,9 @@ Release Notes - v1.1.0
 - Added ticket counters to status groups.
 - Added support for multiple ticket folders in one project.
 - Added folder-based ticket grouping and folder selection when creating tickets.
+
+---
+
+2026-08-13 - David Reid
+
+Status changed from open to closed.
