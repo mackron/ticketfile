@@ -3,3 +3,9 @@ status: open
 ---
 
 Removed metadata test.
+
+---
+
+<COMMENT_HEADER>
+
+priority removed (was high).

@@ -54,12 +54,12 @@ and allocations must succeed before the ticket file is replaced.
 Development Checklist:
 
 - [x] Parse and validate message, file, and `--no-comment` options for `set` and `clear`.
-- [ ] Record added, changed, and removed metadata in command argument order.
-- [ ] Generate one history comment for all metadata changes in a command.
-- [ ] Append an optional user message to the same comment block.
-- [ ] Suppress generated change lines without suppressing an explicit user message.
-- [ ] Skip unchanged metadata and avoid empty comments.
-- [ ] Keep metadata and comment updates atomic.
+- [x] Record added, changed, and removed metadata in command argument order.
+- [x] Generate one history comment for all metadata changes in a command.
+- [x] Append an optional user message to the same comment block.
+- [x] Suppress generated change lines without suppressing an explicit user message.
+- [x] Skip unchanged metadata and avoid empty comments.
+- [x] Keep metadata and comment updates atomic.
 - [ ] Add tests for set, change, clear, multiple changes, and unchanged values.
 - [ ] Add tests for message, file, suppression, invalid options, and failure atomicity.
 - [ ] Update CLI usage documentation.

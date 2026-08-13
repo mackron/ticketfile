@@ -1577,19 +1577,113 @@ static int comment_on_ticket(const char* id)
     return 0;
 }
 
-static char* append_status_change_comment(const char* pFileData, size_t fileDataSize, const char* pOldStatus, size_t oldStatusLength, const char* pNewStatus, size_t newStatusLength, size_t* pUpdatedDataSize)
+typedef struct
+{
+    char* pData;
+    size_t size;
+} text_buffer;
+
+static int append_text(text_buffer* pBuffer, const char* pText, size_t textLength)
+{
+    char* pNewData;
+
+    if (textLength == 0) {
+        return 1;
+    }
+
+    pNewData = (char*)realloc(pBuffer->pData, pBuffer->size + textLength);
+    if (pNewData == NULL) {
+        return 0;
+    }
+
+    pBuffer->pData = pNewData;
+    memcpy(pBuffer->pData + pBuffer->size, pText, textLength);
+    pBuffer->size += textLength;
+    return 1;
+}
+
+static const ticket_metadata* find_ticket_metadata(const char* pFileData, const ticket* pTicket, const char* pKeyText, text_range key)
+{
+    size_t metadataIndex;
+
+    for (metadataIndex = pTicket->metadataCount; metadataIndex > 0; metadataIndex -= 1) {
+        const ticket_metadata* pMetadata = &pTicket->pMetadata[metadataIndex - 1];
+
+        if (text_range_equal(pFileData, pMetadata->key, pKeyText, key)) {
+            return pMetadata;
+        }
+    }
+
+    return NULL;
+}
+
+static int create_metadata_change_text(const char* pFileData, size_t fileDataSize, int argumentCount, char** ppArguments, int hasValues, text_buffer* pChanges)
+{
+    ticket parsedTicket;
+    int argumentIndex;
+
+    pChanges->pData = NULL;
+    pChanges->size = 0;
+    if (!parse_ticket(pFileData, fileDataSize, &parsedTicket)) {
+        return 0;
+    }
+
+    for (argumentIndex = 0; argumentIndex < argumentCount; argumentIndex += 1) {
+        const char* pArgument = ppArguments[argumentIndex];
+        text_range key;
+        text_range value;
+        const ticket_metadata* pExistingMetadata;
+
+        if (hasValues) {
+            parse_metadata_set_argument(pArgument, &key, &value);
+        } else {
+            parse_metadata_key_only_argument(pArgument, &key);
+            value.offset = 0;
+            value.length = 0;
+        }
+
+        pExistingMetadata = find_ticket_metadata(pFileData, &parsedTicket, pArgument, key);
+        if (hasValues && pExistingMetadata == NULL) {
+            if (!append_text(pChanges, pArgument + key.offset, key.length) ||
+                !append_text(pChanges, " set to ", 8) ||
+                !append_text(pChanges, pArgument + value.offset, value.length) ||
+                !append_text(pChanges, ".\n", 2)) {
+                return 0;
+            }
+        } else if (hasValues && !text_range_equal(pFileData, pExistingMetadata->value, pArgument, value)) {
+            if (!append_text(pChanges, pArgument + key.offset, key.length) ||
+                !append_text(pChanges, " changed from ", 14) ||
+                !append_text(pChanges, pFileData + pExistingMetadata->value.offset, pExistingMetadata->value.length) ||
+                !append_text(pChanges, " to ", 4) ||
+                !append_text(pChanges, pArgument + value.offset, value.length) ||
+                !append_text(pChanges, ".\n", 2)) {
+                return 0;
+            }
+        } else if (!hasValues && pExistingMetadata != NULL) {
+            if (!append_text(pChanges, pArgument + key.offset, key.length) ||
+                !append_text(pChanges, " removed (was ", 14) ||
+                !append_text(pChanges, pFileData + pExistingMetadata->value.offset, pExistingMetadata->value.length) ||
+                !append_text(pChanges, ").\n", 3)) {
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
+static char* append_metadata_comment(const char* pFileData, size_t fileDataSize, const text_buffer* pChanges, int addGeneratedComment, const char* pMessage, size_t messageLength, size_t* pUpdatedDataSize)
 {
     const char* pSeparator;
     size_t separatorLength;
-    const char* pMessagePrefix = "Status changed from ";
-    size_t messagePrefixLength = strlen(pMessagePrefix);
-    const char* pMessageMiddle = " to ";
-    size_t messageMiddleLength = strlen(pMessageMiddle);
     char* pCommentHeader;
     size_t commentHeaderLength;
     int authorFound;
     char* pUpdatedData;
     char* pWriteCursor;
+    size_t generatedLength = addGeneratedComment ? pChanges->size : 0;
+    size_t messageSeparatorLength = generatedLength > 0 && messageLength > 0 ? 1 : 0;
+    size_t finalNewlineLength = messageLength > 0 && pMessage[messageLength - 1] != '\n' ? 1 : 0;
 
     pCommentHeader = create_comment_header(&commentHeaderLength, &authorFound);
     if (pCommentHeader == NULL) {
@@ -1597,13 +1691,13 @@ static char* append_status_change_comment(const char* pFileData, size_t fileData
     }
 
     if (!authorFound) {
-        fs_file_writef(STDERR, "Warning: No author name was found for status comment.\n");
+        fs_file_writef(STDERR, "Warning: No author name was found for metadata comment.\n");
     }
 
     pSeparator = fileDataSize > 0 && pFileData[fileDataSize - 1] == '\n' ? "\n---\n\n" : "\n\n---\n\n";
     separatorLength = strlen(pSeparator);
-    *pUpdatedDataSize = fileDataSize + separatorLength + commentHeaderLength + 2 +
-        messagePrefixLength + oldStatusLength + messageMiddleLength + newStatusLength + 2;
+    *pUpdatedDataSize = fileDataSize + separatorLength + commentHeaderLength + 2 + generatedLength +
+        messageSeparatorLength + messageLength + finalNewlineLength;
     pUpdatedData = (char*)malloc(*pUpdatedDataSize);
     if (pUpdatedData == NULL) {
         return NULL;
@@ -1618,30 +1712,33 @@ static char* append_status_change_comment(const char* pFileData, size_t fileData
     pWriteCursor += commentHeaderLength;
     memcpy(pWriteCursor, "\n\n", 2);
     pWriteCursor += 2;
-    memcpy(pWriteCursor, pMessagePrefix, messagePrefixLength);
-    pWriteCursor += messagePrefixLength;
-    memcpy(pWriteCursor, pOldStatus, oldStatusLength);
-    pWriteCursor += oldStatusLength;
-    memcpy(pWriteCursor, pMessageMiddle, messageMiddleLength);
-    pWriteCursor += messageMiddleLength;
-    memcpy(pWriteCursor, pNewStatus, newStatusLength);
-    pWriteCursor += newStatusLength;
-    memcpy(pWriteCursor, ".\n", 2);
+    if (generatedLength > 0) {
+        memcpy(pWriteCursor, pChanges->pData, generatedLength);
+        pWriteCursor += generatedLength;
+    }
+    if (messageSeparatorLength > 0) {
+        pWriteCursor[0] = '\n';
+        pWriteCursor += 1;
+    }
+    if (messageLength > 0) {
+        memcpy(pWriteCursor, pMessage, messageLength);
+        pWriteCursor += messageLength;
+    }
+    if (finalNewlineLength > 0) {
+        pWriteCursor[0] = '\n';
+    }
 
     return pUpdatedData;
 }
 
-static int set_ticket_metadata(const char* id, int argumentCount, char** ppArguments, int addComment)
+static int set_ticket_metadata(const char* id, int argumentCount, char** ppArguments, int addGeneratedComment, const char* pMessage, size_t messageLength)
 {
     fs_result result;
     char* pFilePath;
     char* pFileData;
     size_t fileDataSize;
     int argumentIndex;
-    const char* pOldStatus = NULL;
-    size_t oldStatusLength = 0;
-    const char* pNewStatus = NULL;
-    size_t newStatusLength = 0;
+    text_buffer changes;
     int changed = 0;
 
     if (!is_ticket_id(id)) {
@@ -1658,6 +1755,11 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
     result = read_text_file(pFilePath, &pFileData, &fileDataSize);
     if (result != FS_SUCCESS) {
         fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!create_metadata_change_text(pFileData, fileDataSize, argumentCount, ppArguments, 1, &changes)) {
+        fs_file_writef(STDERR, "Failed to allocate metadata change data.\n");
         return 1;
     }
 
@@ -1689,13 +1791,6 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
         if (pExistingMetadata != NULL) {
             if (text_range_equal(pFileData, pExistingMetadata->value, pArgument, value)) {
                 continue;
-            }
-
-            if (text_range_equal_string(pArgument, key, "status")) {
-                pOldStatus = pFileData + pExistingMetadata->value.offset;
-                oldStatusLength = pExistingMetadata->value.length;
-                pNewStatus = pArgument + value.offset;
-                newStatusLength = value.length;
             }
 
             pUpdatedData = replace_text_range(pFileData, fileDataSize, pExistingMetadata->value, pArgument + value.offset, value.length, &updatedDataSize);
@@ -1731,17 +1826,18 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
         changed = 1;
     }
 
-    if (!changed) {
+    if (!changed && messageLength == 0) {
         return 0;
     }
 
-    if (pOldStatus != NULL && addComment) {
+    if ((addGeneratedComment && changes.size > 0) || messageLength > 0) {
         char* pUpdatedData;
         size_t updatedDataSize;
 
-        pUpdatedData = append_status_change_comment(pFileData, fileDataSize, pOldStatus, oldStatusLength, pNewStatus, newStatusLength, &updatedDataSize);
+        pUpdatedData = append_metadata_comment(pFileData, fileDataSize, &changes, addGeneratedComment,
+            pMessage, messageLength, &updatedDataSize);
         if (pUpdatedData == NULL) {
-            fs_file_writef(STDERR, "Failed to allocate status comment data.\n");
+            fs_file_writef(STDERR, "Failed to allocate metadata comment data.\n");
             return 1;
         }
 
@@ -1779,7 +1875,8 @@ static text_range metadata_line_range(const char* pText, size_t textLength, cons
     return line;
 }
 
-static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArguments, int addComment)
+static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArguments,
+    int addGeneratedComment, const char* pMessage, size_t messageLength)
 {
     fs_result result;
     char* pFilePath;
@@ -1787,8 +1884,7 @@ static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArg
     size_t fileDataSize;
     int argumentIndex;
     int changed = 0;
-
-    (void)addComment;
+    text_buffer changes;
 
     if (!is_ticket_id(id)) {
         fs_file_writef(STDERR, "Invalid ticket ID: %s.\n", id);
@@ -1804,6 +1900,11 @@ static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArg
     result = read_text_file(pFilePath, &pFileData, &fileDataSize);
     if (result != FS_SUCCESS) {
         fs_file_writef(STDERR, "Failed to read %s. %s.\n", pFilePath, fs_result_description(result));
+        return 1;
+    }
+
+    if (!create_metadata_change_text(pFileData, fileDataSize, argumentCount, ppArguments, 0, &changes)) {
+        fs_file_writef(STDERR, "Failed to allocate metadata change data.\n");
         return 1;
     }
 
@@ -1848,8 +1949,22 @@ static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArg
         } while (found);
     }
 
-    if (!changed) {
+    if (!changed && messageLength == 0) {
         return 0;
+    }
+
+    if ((addGeneratedComment && changes.size > 0) || messageLength > 0) {
+        char* pUpdatedData;
+        size_t updatedDataSize;
+
+        pUpdatedData = append_metadata_comment(pFileData, fileDataSize, &changes, addGeneratedComment, pMessage, messageLength, &updatedDataSize);
+        if (pUpdatedData == NULL) {
+            fs_file_writef(STDERR, "Failed to allocate metadata comment data.\n");
+            return 1;
+        }
+
+        pFileData = pUpdatedData;
+        fileDataSize = updatedDataSize;
     }
 
     result = replace_text_file(pFilePath, pFileData, fileDataSize);
@@ -2103,9 +2218,9 @@ static int run_metadata_command_test(const char* pCaseName)
     if (!validate_metadata_arguments(ppArguments[0], argumentCount - 1, ppArguments + 1)) {
         result = 1;
     } else if (strcmp(ppArguments[0], "set") == 0) {
-        result = set_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment);
+        result = set_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment, NULL, 0);
     } else if (strcmp(ppArguments[0], "clear") == 0) {
-        result = clear_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment);
+        result = clear_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment, NULL, 0);
     } else {
         result = 1;
     }
@@ -2327,14 +2442,15 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        (void)options.pMessage;
-        (void)options.messageLength;
-
         if (hasValues) {
-            return set_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount, argv + argumentIndex + 2, options.addGeneratedComment);
+            return set_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount,
+                argv + argumentIndex + 2, options.addGeneratedComment, options.pMessage,
+                options.messageLength);
         }
 
-        return clear_ticket_metadata( argv[argumentIndex + 1], options.metadataArgumentCount, argv + argumentIndex + 2, options.addGeneratedComment);
+        return clear_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount,
+            argv + argumentIndex + 2, options.addGeneratedComment, options.pMessage,
+            options.messageLength);
     }
 
     if (strcmp(argv[argumentIndex], "new") == 0) {

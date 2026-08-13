@@ -8,4 +8,4 @@ Status history test.
 
 <COMMENT_HEADER>
 
-Status changed from open to review.
+status changed from open to review.
