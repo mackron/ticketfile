@@ -13,3 +13,4 @@ Release Notes - v1.2.0
 ## Visual Studio Code
 
 - Fix a "Cannot read properties of null (reading 'ticketFolder')" error.
+- Added an Assign To command with configured names, free-form input, and assignment history.

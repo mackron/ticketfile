@@ -1,13 +1,13 @@
 # Plain Text Ticket Management for Visual Studio Code
 
-Ticket Explorer manages simple tickets stored as human-readable plain-text
+Ticketfile manages simple tickets stored as human-readable plain-text
 files. Ticket files remain usable with normal text editors and version-control
 tools.
 
 ## Features
 
 - View tickets in Open, Closed, and Uncategorized groups.
-- Create, open, change status, comment on, and delete tickets.
+- Create, open, assign, change status, comment on, and delete tickets.
 - Filter tickets by metadata such as `status:open`.
 - Refresh the view automatically when ticket files change.
 - Configure one or more ticket directories for each workspace.
@@ -15,7 +15,7 @@ tools.
 ## Getting Started
 
 Open a folder in Visual Studio Code, then select **Tickets** in the Activity Bar.
-By default, Ticket Explorer reads ticket files from the `tickets` directory in
+By default, Ticketfile reads ticket files from the `tickets` directory in
 the first workspace folder.
 
 Use `ticketfile.ticketFolders` to configure ticket directories. Each entry requires a display
@@ -40,12 +40,32 @@ With one configured directory, status groups remain at the root of the ticket tr
 directories, each directory has a top-level tree item that contains its status groups. Ticket IDs
 can overlap between directories.
 
-When creating a ticket, Ticket Explorer uses the directory from the selected tree item when
+When creating a ticket, Ticketfile uses the directory from the selected tree item when
 possible. If multiple directories are configured and no directory can be inferred, it asks you to
 select one.
 
 Set `ticketfile.ticketFolders` in user settings to use the same directories in all projects. A
 workspace setting replaces the complete user list. User and workspace arrays do not merge.
+
+## Assignees
+
+Use `ticketfile.assignees` to add names to the Assign To menu in display order:
+
+```json
+{
+    "ticketfile.assignees": [
+        "David Reid",
+        "Clanker"
+    ]
+}
+```
+
+Use **Assign To...** from a ticket context menu or the command palette. Select a configured name,
+select **Enter Name...** for a free-form name, or select **Clear Assignee** to remove assignee
+metadata.
+
+Set `ticketfile.assignees` in user settings to use the same names in all projects. A workspace
+setting replaces the complete user list. User and workspace arrays do not merge.
 
 ## Status Groups
 

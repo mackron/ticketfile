@@ -1,4 +1,5 @@
-status: open
+assignee: David Reid
+status: closed
 
 ---
 
@@ -45,6 +46,18 @@ Development Checklist:
 - [x] Keep metadata and history updates atomic.
 - [x] Refresh folder-aware ticket trees after assignment changes.
 - [x] Add tests for configuration and metadata assignment behavior.
-- [ ] Update VS Code extension documentation.
-- [ ] Update release notes for ticket with `release-notes:1.2.0`.
-- [ ] Run VS Code syntax and test checks.
+- [x] Update VS Code extension documentation.
+- [x] Update release notes for ticket with `release-notes:1.2.0`.
+- [x] Run VS Code syntax and test checks.
+
+---
+
+2026-08-13 - Clanker
+
+Status changed from open to review.
+
+---
+
+2026-08-13 - David Reid
+
+Status changed from review to closed.
