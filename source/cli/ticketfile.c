@@ -88,11 +88,13 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "    get <id> <key>\n");
     fs_file_writef(STDOUT, "        Write one metadata value to standard output.\n");
     fs_file_writef(STDOUT, "\n");
-    fs_file_writef(STDOUT, "    set <id> <key:value> [<key:value> ...] [--no-comment]\n");
+    fs_file_writef(STDOUT, "    set <id> <key:value> [<key:value> ...] [<comment options>]\n");
     fs_file_writef(STDOUT, "        Set one or more metadata values.\n");
     fs_file_writef(STDOUT, "\n");
-    fs_file_writef(STDOUT, "    clear <id> <key> [<key> ...] [--no-comment]\n");
+    fs_file_writef(STDOUT, "    clear <id> <key> [<key> ...] [<comment options>]\n");
     fs_file_writef(STDOUT, "        Remove one or more metadata values.\n");
+    fs_file_writef(STDOUT, "        Comment options: -m <text>, --message <text>,\n");
+    fs_file_writef(STDOUT, "                         -F <path>, --file <path>, --no-comment.\n");
     fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    new [-m <text> | --message <text> |\n");
     fs_file_writef(STDOUT, "         -F <path> | --file <path>]\n");
@@ -252,6 +254,105 @@ static int validate_metadata_arguments(const char* pCommand, int argumentCount, 
 
     if (metadata_arguments_have_duplicate_keys(argumentCount, ppArguments, hasValues)) {
         fs_file_writef(STDERR, "The %s command contains a duplicate metadata key.\n", pCommand);
+        return 0;
+    }
+
+    return 1;
+}
+
+typedef struct
+{
+    int metadataArgumentCount;
+    int addGeneratedComment;
+    const char* pMessage;
+    size_t messageLength;
+} metadata_command_options;
+
+static fs_result read_text_file(const char* pFilePath, char** ppFileData, size_t* pFileDataSize);
+
+static int text_has_non_whitespace(const char* pText, size_t textLength)
+{
+    size_t i;
+
+    for (i = 0; i < textLength; i += 1) {
+        if (pText[i] != ' ' && pText[i] != '\t' && pText[i] != '\r' && pText[i] != '\n') {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int parse_metadata_command_options(int argumentCount, char** ppArguments, metadata_command_options* pOptions)
+{
+    int argumentIndex;
+    int messageFound = 0;
+
+    pOptions->metadataArgumentCount = argumentCount;
+    pOptions->addGeneratedComment = 1;
+    pOptions->pMessage = NULL;
+    pOptions->messageLength = 0;
+
+    for (argumentIndex = 0; argumentIndex < argumentCount; argumentIndex += 1) {
+        const char* pArgument = ppArguments[argumentIndex];
+        int isMessage = strcmp(pArgument, "-m") == 0 || strcmp(pArgument, "--message") == 0;
+        int isFile = strcmp(pArgument, "-F") == 0 || strcmp(pArgument, "--file") == 0;
+
+        if (pArgument[0] != '-') {
+            if (pOptions->metadataArgumentCount != argumentCount) {
+                fs_file_writef(STDERR, "Metadata arguments must come before comment options.\n");
+                return 0;
+            }
+            continue;
+        }
+
+        if (pOptions->metadataArgumentCount == argumentCount) {
+            pOptions->metadataArgumentCount = argumentIndex;
+        }
+
+        if (strcmp(pArgument, "--no-comment") == 0) {
+            if (!pOptions->addGeneratedComment) {
+                fs_file_writef(STDERR, "The --no-comment option must not occur more than once.\n");
+                return 0;
+            }
+            pOptions->addGeneratedComment = 0;
+            continue;
+        }
+
+        if (isMessage || isFile) {
+            if (messageFound) {
+                fs_file_writef(STDERR, "Message and file options are mutually exclusive and must not repeat.\n");
+                return 0;
+            }
+            if (argumentIndex + 1 >= argumentCount) {
+                fs_file_writef(STDERR, "The %s option requires a value.\n", pArgument);
+                return 0;
+            }
+
+            argumentIndex += 1;
+            if (isFile) {
+                fs_result result = read_text_file(ppArguments[argumentIndex], (char**)&pOptions->pMessage,
+                    &pOptions->messageLength);
+
+                if (result != FS_SUCCESS) {
+                    fs_file_writef(STDERR, "Failed to read %s. %s.\n", ppArguments[argumentIndex],
+                        fs_result_description(result));
+                    return 0;
+                }
+            } else {
+                pOptions->pMessage = ppArguments[argumentIndex];
+                pOptions->messageLength = strlen(pOptions->pMessage);
+            }
+
+            if (!text_has_non_whitespace(pOptions->pMessage, pOptions->messageLength)) {
+                fs_file_writef(STDERR, "A metadata comment message must not be empty.\n");
+                return 0;
+            }
+            messageFound = 1;
+            continue;
+        }
+
+        fs_file_writef(STDERR, "Unknown metadata comment option: %s.\n", pArgument);
         return 0;
     }
 
@@ -2208,38 +2309,32 @@ int main(int argc, char** argv)
     }
 
     if (strcmp(argv[argumentIndex], "set") == 0 || strcmp(argv[argumentIndex], "clear") == 0) {
-        int metadataArgumentCount;
-        int addComment = 1;
+        metadata_command_options options;
+        int optionArgumentCount = argc - argumentIndex - 2;
         int hasValues = strcmp(argv[argumentIndex], "set") == 0;
 
-        if (argc > argumentIndex + 1 && strcmp(argv[argc - 1], "--no-comment") == 0) {
-            addComment = 0;
+        if (!parse_metadata_command_options(optionArgumentCount, argv + argumentIndex + 2, &options)) {
+            return 1;
         }
 
-        metadataArgumentCount = argc - argumentIndex - 2 - (addComment ? 0 : 1);
-        if (metadataArgumentCount < 1) {
+        if (options.metadataArgumentCount < 1) {
             fs_file_writef(STDERR, "The %s command requires one ticket ID and at least one metadata argument.\n", argv[argumentIndex]);
             print_usage(argv[0]);
             return 1;
         }
 
-        if (!validate_metadata_arguments(argv[argumentIndex], metadataArgumentCount, argv + argumentIndex + 2)) {
+        if (!validate_metadata_arguments(argv[argumentIndex], options.metadataArgumentCount, argv + argumentIndex + 2)) {
             return 1;
         }
 
+        (void)options.pMessage;
+        (void)options.messageLength;
+
         if (hasValues) {
-            return set_ticket_metadata(
-                argv[argumentIndex + 1],
-                metadataArgumentCount,
-                argv + argumentIndex + 2,
-                addComment);
+            return set_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount, argv + argumentIndex + 2, options.addGeneratedComment);
         }
 
-        return clear_ticket_metadata(
-            argv[argumentIndex + 1],
-            metadataArgumentCount,
-            argv + argumentIndex + 2,
-            addComment);
+        return clear_ticket_metadata( argv[argumentIndex + 1], options.metadataArgumentCount, argv + argumentIndex + 2, options.addGeneratedComment);
     }
 
     if (strcmp(argv[argumentIndex], "new") == 0) {
@@ -2285,16 +2380,18 @@ int main(int argc, char** argv)
         return comment_on_ticket(argv[argumentIndex + 1]);
     }
 
-#if defined(TICKETFILE_ENABLE_TESTS)
-    if (strcmp(argv[argumentIndex], "--test") == 0) {
-        if (argc > argumentIndex + 2) {
-            fs_file_writef(STDERR, "The --test option takes no more than one case.\n");
-            return 1;
-        }
+    #if defined(TICKETFILE_ENABLE_TESTS)
+    {
+        if (strcmp(argv[argumentIndex], "--test") == 0) {
+            if (argc > argumentIndex + 2) {
+                fs_file_writef(STDERR, "The --test option takes no more than one case.\n");
+                return 1;
+            }
 
-        return run_tests(argc == argumentIndex + 2 ? argv[argumentIndex + 1] : NULL);
+            return run_tests(argc == argumentIndex + 2 ? argv[argumentIndex + 1] : NULL);
+        }
     }
-#endif
+    #endif
 
     if (strcmp(argv[argumentIndex], "--help") == 0 || strcmp(argv[argumentIndex], "-h") == 0) {
         print_usage(argv[0]);
