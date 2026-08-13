@@ -81,6 +81,11 @@
                 "icon": "$(edit)"
             },
             {
+                "command": "ticketfile.closeTicket",
+                "title": "Close Ticket",
+                "icon": "$(check)"
+            },
+            {
                 "command": "ticketfile.assignTicket",
                 "title": "Assign To...",
                 "icon": "$(account)"
@@ -127,33 +132,38 @@
                 },
                 {
                     "command": "ticketfile.setTicketStatus",
-                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^ticketfileTicket/",
                     "group": "inline@1"
                 },
                 {
                     "command": "ticketfile.addComment",
-                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^ticketfileTicket/",
                     "group": "inline@2"
                 },
                 {
                     "command": "ticketfile.setTicketStatus",
-                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^ticketfileTicket/",
                     "group": "1_modification@1"
                 },
                 {
-                    "command": "ticketfile.addComment",
+                    "command": "ticketfile.closeTicket",
                     "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
+                    "group": "2_close@1"
+                },
+                {
+                    "command": "ticketfile.addComment",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^ticketfileTicket/",
                     "group": "1_modification@2"
                 },
                 {
                     "command": "ticketfile.assignTicket",
-                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
+                    "when": "view == ticketfile.tickets && viewItem =~ /^ticketfileTicket/",
                     "group": "1_modification@3"
                 },
                 {
                     "command": "ticketfile.deleteTicket",
-                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
-                    "group": "2_danger@1"
+                    "when": "view == ticketfile.tickets && viewItem =~ /^ticketfileTicket/",
+                    "group": "3_danger@1"
                 }
             ]
         },

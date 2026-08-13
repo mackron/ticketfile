@@ -1,0 +1,10 @@
+status: open
+release-notes: 1.3.0
+
+---
+
+Release Notes - v1.3.0
+
+## Visual Studio Code
+
+- Added a Close Ticket shortcut to ticket context menus.

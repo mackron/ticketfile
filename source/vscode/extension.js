@@ -633,7 +633,7 @@ class TicketItem extends vscode.TreeItem
         this.fileName = fileName;
         this.status = status;
         this.ticketFolder = ticketFolder;
-        this.contextValue = "ticketfileTicket";
+        this.contextValue = status === "closed" ? "ticketfileTicketClosed" : "ticketfileTicket";
         this.resourceUri = fileUri;
         this.tooltip = diagnostic === undefined ? label : `${label}: ${diagnostic}`;
         this.command = {
@@ -877,6 +877,10 @@ function activate(context)
     const setTicketStatusCommand = vscode.commands.registerCommand("ticketfile.setTicketStatus", (ticketItem) => {
         return setTicketStatus(ticketItem, ticketProvider);
     });
+    const closeTicketCommand = vscode.commands.registerCommand("ticketfile.closeTicket", (ticketItem) => {
+        const inferredItem = ticketItem === undefined || ticketItem === null ? treeView.selection[0] : ticketItem;
+        return updateTicketStatus(inferredItem, "closed", ticketProvider);
+    });
     const assignTicketCommand = vscode.commands.registerCommand("ticketfile.assignTicket", (ticketItem) => {
         const inferredItem = ticketItem === undefined || ticketItem === null ? treeView.selection[0] : ticketItem;
         return assignTicket(inferredItem, ticketProvider);
@@ -885,7 +889,7 @@ function activate(context)
         return deleteTicket(ticketItem, ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, assignTicketCommand, deleteTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, closeTicketCommand, assignTicketCommand, deleteTicketCommand
     );
 
     updateFilterDisplay();
