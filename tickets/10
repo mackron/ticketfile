@@ -1,0 +1,50 @@
+status: open
+
+---
+
+Add an "Assign To..." command to the VS Code extension.
+
+There needs to be a menu item to assign a ticket. Support both predefined names in the config and
+free-form text.
+
+Add a `ticketfile.assignees` setting which contains an ordered array of names. It should support
+user and workspace configuration in the same way as other array settings. A workspace value should
+replace the complete user value. Trim configured names and reject empty or duplicate entries.
+
+The Assign To command should first show configured names, followed by these actions:
+
+- Enter Name... opens a text box for a free-form assignee.
+- Clear Assignee removes assignee metadata.
+
+Trim free-form input and reject an empty name. Selecting the current assignee should make no
+change. The command should be available from a ticket context menu and the command palette.
+
+Refactor status assignment code into a general metadata-update path where practical. Assignment
+must use the selected ticket's full URI, reject changes when the document has unsaved edits, and
+preserve ticket-folder ownership. It should add assignment history with wording consistent with
+CLI metadata history:
+
+```
+assignee set to Clanker.
+assignee changed from David Reid to Clanker.
+assignee removed (was Clanker).
+```
+
+The update and history comment should be written as one operation. Refresh the correct ticket tree
+after the write. Missing author configuration should use the existing warning behavior.
+
+Development Checklist:
+
+- [x] Add and validate the `ticketfile.assignees` setting.
+- [x] Add the Assign To command to the command palette and ticket context menu.
+- [x] Show configured assignees in configuration order.
+- [x] Add free-form assignee input and Clear Assignee actions.
+- [x] Read, add, replace, and remove assignee metadata.
+- [x] Skip unchanged assignments and reject updates for unsaved tickets.
+- [x] Add assignment history with the configured comment author.
+- [x] Keep metadata and history updates atomic.
+- [x] Refresh folder-aware ticket trees after assignment changes.
+- [ ] Add tests for configuration and metadata assignment behavior.
+- [ ] Update VS Code extension documentation.
+- [ ] Update release notes for ticket with `release-notes:1.2.0`.
+- [ ] Run VS Code syntax and test checks.

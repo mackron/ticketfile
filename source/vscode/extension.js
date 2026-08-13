@@ -9,6 +9,56 @@ const defaultStatusGroups = [
 const defaultTicketFolders = [
     { label: "Tickets", path: "tickets" }
 ];
+const defaultAssignees = [];
+
+function validateAssignees(assignees)
+{
+    const names = new Set();
+
+    if (!Array.isArray(assignees)) {
+        return "Ticket assignees must be an array.";
+    }
+
+    for (let index = 0; index < assignees.length; index += 1) {
+        const assignee = assignees[index];
+
+        if (typeof assignee !== "string" || assignee.trim() === "") {
+            return `Ticket assignee ${index + 1} must be a non-empty string.`;
+        }
+
+        const name = assignee.trim();
+        if (names.has(name)) {
+            return `Ticket assignees contain duplicate name: ${name}.`;
+        }
+
+        names.add(name);
+    }
+
+    return undefined;
+}
+
+function loadAssignees(configuration)
+{
+    const inspected = configuration.inspect("assignees");
+    let assignees;
+
+    if (inspected !== undefined && inspected.workspaceValue !== undefined) {
+        assignees = inspected.workspaceValue;
+    } else if (inspected !== undefined && inspected.globalValue !== undefined) {
+        assignees = inspected.globalValue;
+    } else if (inspected !== undefined && inspected.defaultValue !== undefined) {
+        assignees = inspected.defaultValue;
+    } else {
+        assignees = defaultAssignees;
+    }
+
+    const error = validateAssignees(assignees);
+
+    return {
+        error,
+        assignees: error === undefined ? assignees.map((assignee) => assignee.trim()) : [...defaultAssignees]
+    };
+}
 
 function normalizeTicketFolderPath(folderPath)
 {
@@ -358,6 +408,141 @@ async function setTicketStatus(ticketItem, ticketProvider)
     }
 }
 
+function findMetadataLines(text, key)
+{
+    const ranges = [];
+    let cursor = 0;
+
+    while (cursor < text.length) {
+        let lineEnd = text.indexOf("\n", cursor);
+        if (lineEnd === -1) {
+            lineEnd = text.length;
+        }
+
+        const line = text.substring(cursor, lineEnd);
+        if (line.trim() === "---") {
+            break;
+        }
+
+        const match = /^([ \t\r]*)([^:]+?)([ \t]*:[ \t]*)(.*?)([ \t\r]*)$/.exec(line);
+        if (match !== null && match[2].trim() === key) {
+            ranges.push({
+                lineOffset: cursor,
+                lineLength: lineEnd - cursor + (lineEnd < text.length ? 1 : 0),
+                valueOffset: cursor + match[1].length + match[2].length + match[3].length,
+                valueLength: match[4].length
+            });
+        }
+
+        cursor = lineEnd + 1;
+    }
+
+    return ranges;
+}
+
+async function updateTicketAssignee(ticketItem, assignee, ticketProvider)
+{
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket before changing its assignee.");
+        return;
+    }
+
+    try {
+        const openDocument = vscode.workspace.textDocuments.find((document) => document.uri.toString() === ticketItem.resourceUri.toString());
+        if (openDocument !== undefined && openDocument.isDirty) {
+            vscode.window.showErrorMessage("Save ticket changes before changing its assignee.");
+            return;
+        }
+
+        const fileData = await vscode.workspace.fs.readFile(ticketItem.resourceUri);
+        const text = Buffer.from(fileData).toString("utf8");
+        const parsedTicket = parseTicket(text);
+        const oldAssignee = parsedTicket.metadata.get("assignee");
+
+        if (oldAssignee === assignee || (oldAssignee === undefined && assignee === undefined)) {
+            return;
+        }
+
+        const ranges = findMetadataLines(text, "assignee");
+        let updatedText = text;
+
+        if (assignee === undefined) {
+            for (let index = ranges.length - 1; index >= 0; index -= 1) {
+                const range = ranges[index];
+                updatedText = updatedText.substring(0, range.lineOffset) + updatedText.substring(range.lineOffset + range.lineLength);
+            }
+        } else if (ranges.length > 0) {
+            const range = ranges[ranges.length - 1];
+            updatedText = text.substring(0, range.valueOffset) + assignee + text.substring(range.valueOffset + range.valueLength);
+        } else if (parsedTicket.hasMetadataSection) {
+            updatedText = `assignee: ${assignee}\n${text}`;
+        } else {
+            updatedText = `assignee: ${assignee}\n\n---\n\n${text}`;
+        }
+
+        let changeMessage;
+        if (oldAssignee === undefined) {
+            changeMessage = `assignee set to ${assignee}.`;
+        } else if (assignee === undefined) {
+            changeMessage = `assignee removed (was ${oldAssignee}).`;
+        } else {
+            changeMessage = `assignee changed from ${oldAssignee} to ${assignee}.`;
+        }
+
+        const author = await getCommentAuthor();
+        const separator = updatedText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
+        updatedText += `${separator}${getCurrentDate()} - ${author}\n\n${changeMessage}\n`;
+
+        await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
+        ticketProvider.refresh();
+
+        if (author === "<Insert Name>") {
+            vscode.window.showWarningMessage("Assignee was changed without an author name.");
+        }
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to update ticket. ${error.message}`);
+    }
+}
+
+async function assignTicket(ticketItem, ticketProvider)
+{
+    if (!(ticketItem instanceof TicketItem)) {
+        vscode.window.showErrorMessage("Select a ticket before changing its assignee.");
+        return;
+    }
+
+    const selected = await vscode.window.showQuickPick([
+        ...ticketProvider.assignees.map((assignee) => ({ label: assignee, assignee })),
+        { label: "$(edit) Enter Name...", action: "enter" },
+        { label: "$(clear-all) Clear Assignee", action: "clear" }
+    ], {
+        title: "Assign Ticket",
+        placeHolder: "Select or enter an assignee"
+    });
+
+    if (selected === undefined || selected === null) {
+        return;
+    }
+
+    let assignee = selected.assignee;
+    if (selected.action === "enter") {
+        const entered = await vscode.window.showInputBox({
+            title: "Assign Ticket",
+            prompt: "Enter an assignee name",
+            validateInput: (value) => value.trim() === "" ? "Enter a non-empty assignee name." : undefined
+        });
+
+        if (entered === undefined || entered === null) {
+            return;
+        }
+        assignee = entered.trim();
+    } else if (selected.action === "clear") {
+        assignee = undefined;
+    }
+
+    await updateTicketAssignee(ticketItem, assignee, ticketProvider);
+}
+
 async function openTicket(ticketItem)
 {
     if (!(ticketItem instanceof TicketItem)) {
@@ -492,7 +677,7 @@ class TicketItem extends vscode.TreeItem
 
 class TicketProvider
 {
-    constructor(ticketFolders, statusGroups)
+    constructor(ticketFolders, statusGroups, assignees)
     {
         this.changeTreeDataEmitter = new vscode.EventEmitter();
         this.onDidChangeTreeData = this.changeTreeDataEmitter.event;
@@ -500,6 +685,7 @@ class TicketProvider
         this.filters = [];
         this.ticketFolders = ticketFolders;
         this.statusGroups = statusGroups;
+        this.assignees = assignees;
         this.ticketPromises = new Map();
     }
 
@@ -519,6 +705,11 @@ class TicketProvider
     {
         this.ticketFolders = ticketFolders;
         this.refresh();
+    }
+
+    setAssignees(assignees)
+    {
+        this.assignees = assignees;
     }
 
     setFilter(filterText)
@@ -659,6 +850,7 @@ function activate(context)
 {
     const ticketFolderConfiguration = loadTicketFolders(vscode.workspace.getConfiguration("ticketfile"));
     const statusGroupConfiguration = loadStatusGroups(vscode.workspace.getConfiguration("ticketfile"));
+    const assigneeConfiguration = loadAssignees(vscode.workspace.getConfiguration("ticketfile"));
 
     if (ticketFolderConfiguration.error !== undefined) {
         vscode.window.showErrorMessage(ticketFolderConfiguration.error);
@@ -666,8 +858,11 @@ function activate(context)
     if (statusGroupConfiguration.error !== undefined) {
         vscode.window.showErrorMessage(statusGroupConfiguration.error);
     }
+    if (assigneeConfiguration.error !== undefined) {
+        vscode.window.showErrorMessage(assigneeConfiguration.error);
+    }
 
-    const ticketProvider = new TicketProvider(ticketFolderConfiguration.folders, statusGroupConfiguration.groups);
+    const ticketProvider = new TicketProvider(ticketFolderConfiguration.folders, statusGroupConfiguration.groups, assigneeConfiguration.assignees);
     const treeView = vscode.window.createTreeView("ticketfile.tickets", { treeDataProvider: ticketProvider });
 
     function updateFilterDisplay()
@@ -712,11 +907,15 @@ function activate(context)
     const setTicketStatusCommand = vscode.commands.registerCommand("ticketfile.setTicketStatus", (ticketItem) => {
         return setTicketStatus(ticketItem, ticketProvider);
     });
+    const assignTicketCommand = vscode.commands.registerCommand("ticketfile.assignTicket", (ticketItem) => {
+        const inferredItem = ticketItem === undefined || ticketItem === null ? treeView.selection[0] : ticketItem;
+        return assignTicket(inferredItem, ticketProvider);
+    });
     const deleteTicketCommand = vscode.commands.registerCommand("ticketfile.deleteTicket", (ticketItem) => {
         return deleteTicket(ticketItem, ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, deleteTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, assignTicketCommand, deleteTicketCommand
     );
 
     updateFilterDisplay();
@@ -773,6 +972,16 @@ function activate(context)
             ticketProvider.setStatusGroups(updatedConfiguration.groups);
         } else if (event.affectsConfiguration("ticketfile.initialStatus")) {
             ticketProvider.refresh();
+        }
+
+        if (event.affectsConfiguration("ticketfile.assignees")) {
+            const updatedConfiguration = loadAssignees(vscode.workspace.getConfiguration("ticketfile"));
+
+            if (updatedConfiguration.error !== undefined) {
+                vscode.window.showErrorMessage(updatedConfiguration.error);
+            }
+
+            ticketProvider.setAssignees(updatedConfiguration.assignees);
         }
     });
 

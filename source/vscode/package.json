@@ -81,6 +81,11 @@
                 "icon": "$(edit)"
             },
             {
+                "command": "ticketfile.assignTicket",
+                "title": "Assign To...",
+                "icon": "$(account)"
+            },
+            {
                 "command": "ticketfile.deleteTicket",
                 "title": "Delete Ticket",
                 "icon": "$(trash)"
@@ -136,6 +141,11 @@
                     "group": "1_modification@2"
                 },
                 {
+                    "command": "ticketfile.assignTicket",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
+                    "group": "1_modification@3"
+                },
+                {
                     "command": "ticketfile.deleteTicket",
                     "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "2_danger@1"
@@ -145,6 +155,16 @@
         "configuration": {
             "title": "Ticket Explorer",
             "properties": {
+                "ticketfile.assignees": {
+                    "type": "array",
+                    "default": [],
+                    "uniqueItems": true,
+                    "description": "Assignee names in display order. Workspace settings replace the complete user list.",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
                 "ticketfile.ticketFolders": {
                     "type": "array",
                     "default": [
