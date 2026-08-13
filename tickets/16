@@ -8,3 +8,4 @@ Release Notes - v1.3.0
 ## Visual Studio Code
 
 - Added a Close Ticket shortcut to ticket context menus.
+- Added a quick Create Ticket button to status groups.

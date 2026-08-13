@@ -122,6 +122,11 @@
             "view/item/context": [
                 {
                     "command": "ticketfile.createTicket",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicketGroup",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "ticketfile.createTicket",
                     "when": "view == ticketfile.tickets && viewItem == ticketfileTicketFolder",
                     "group": "1_modification@1"
                 },
