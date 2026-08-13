@@ -2111,7 +2111,7 @@ static int run_metadata_command_test(const char* pCaseName)
     char* pTemporaryTicketPath;
     char* pActualData;
     size_t actualDataSize;
-    int addComment = 1;
+    metadata_command_options options;
     int expectedSuccess = 1;
     int result;
     int passed;
@@ -2178,11 +2178,6 @@ static int run_metadata_command_test(const char* pCaseName)
         return 0;
     }
 
-    if (strcmp(ppArguments[argumentCount - 1], "--no-comment") == 0) {
-        addComment = 0;
-        argumentCount -= 1;
-    }
-
     {
         char* pResultPath = get_test_path(pCaseName, "result.txt");
         char* pResultData;
@@ -2203,12 +2198,14 @@ static int run_metadata_command_test(const char* pCaseName)
         return 0;
     }
 
-    if (!validate_metadata_arguments(ppArguments[0], argumentCount - 1, ppArguments + 1)) {
+    if (!parse_metadata_command_options(argumentCount - 1, ppArguments + 1, &options)) {
+        result = 1;
+    } else if (options.metadataArgumentCount < 1 || !validate_metadata_arguments(ppArguments[0], options.metadataArgumentCount, ppArguments + 1)) {
         result = 1;
     } else if (strcmp(ppArguments[0], "set") == 0) {
-        result = set_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment, NULL, 0);
+        result = set_ticket_metadata("1", options.metadataArgumentCount, ppArguments + 1, options.addGeneratedComment, options.pMessage, options.messageLength);
     } else if (strcmp(ppArguments[0], "clear") == 0) {
-        result = clear_ticket_metadata("1", argumentCount - 1, ppArguments + 1, addComment, NULL, 0);
+        result = clear_ticket_metadata("1", options.metadataArgumentCount, ppArguments + 1, options.addGeneratedComment, options.pMessage, options.messageLength);
     } else {
         result = 1;
     }

@@ -1,0 +1,11 @@
+status: review
+
+---
+
+Suppressed metadata history test.
+
+---
+
+<COMMENT_HEADER>
+
+Ready without generated history.

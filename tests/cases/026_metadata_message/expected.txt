@@ -1,0 +1,13 @@
+status: review
+
+---
+
+Metadata message test.
+
+---
+
+<COMMENT_HEADER>
+
+status changed from open to review.
+
+Ready for review.

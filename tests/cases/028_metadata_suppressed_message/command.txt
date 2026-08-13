@@ -1,0 +1,5 @@
+set
+status:review
+--no-comment
+-m
+Ready without generated history.

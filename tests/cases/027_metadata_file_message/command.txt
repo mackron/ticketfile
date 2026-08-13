@@ -1,0 +1,4 @@
+clear
+assignee
+-F
+tests/cases/027_metadata_file_message/message.txt

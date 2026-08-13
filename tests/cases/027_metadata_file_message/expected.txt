@@ -1,0 +1,13 @@
+status: open
+
+---
+
+Metadata file message test.
+
+---
+
+<COMMENT_HEADER>
+
+assignee removed (was Clanker).
+
+Ownership is no longer required.
