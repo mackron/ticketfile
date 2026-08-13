@@ -1,4 +1,5 @@
-status: open
+assignee: David Reid
+status: closed
 version: 1.2.0
 
 ---
@@ -62,6 +63,18 @@ Development Checklist:
 - [x] Keep metadata and comment updates atomic.
 - [x] Add tests for set, change, clear, multiple changes, and unchanged values.
 - [x] Add tests for message, file, suppression, invalid options, and failure atomicity.
-- [ ] Update CLI usage documentation.
-- [ ] Update release notes for ticket with `release-notes:1.2.0`.
-- [ ] Run CLI builds and tests.
+- [x] Update CLI usage documentation.
+- [x] Update release notes for ticket with `release-notes:1.2.0`.
+- [x] Run CLI builds and tests.
+
+---
+
+2026-08-13 - Clanker
+
+Status changed from open to review.
+
+---
+
+2026-08-13 - David Reid
+
+Status changed from review to closed.

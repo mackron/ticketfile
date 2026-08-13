@@ -98,18 +98,26 @@ value contains spaces:
 ticket set 123 status:review "assignee:David Reid"
 ```
 
-When an existing status changes, `set` adds a dated history entry. Use `--no-comment` as the final
-argument to suppress this entry:
+By default, `set` and `clear` add one dated history comment for all changed metadata. Use
+`--no-comment` to suppress generated change lines:
 
 ```
 ticket set 123 status:review --no-comment
 ```
 
-Use `clear` to remove one or more metadata values atomically. Clearing a status does not add a
-history entry:
+Use `clear` to remove one or more metadata values atomically:
 
 ```
 ticket clear 123 status assignee
+```
+
+Use `-m` or `--message` to add text after generated change lines in the same comment. Use `-F` or
+`--file` to read this text from a file. An explicit message still creates a comment when
+`--no-comment` is present:
+
+```
+ticket set 123 status:review "assignee:David Reid" -m "Ready for review."
+ticket clear 123 assignee --no-comment --file reason.txt
 ```
 
 Use `new` without arguments to create an open ticket in an editor. Use `-m` or `--message` to

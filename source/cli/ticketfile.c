@@ -93,8 +93,8 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    clear <id> <key> [<key> ...] [<comment options>]\n");
     fs_file_writef(STDOUT, "        Remove one or more metadata values.\n");
-    fs_file_writef(STDOUT, "        Comment options: -m <text>, --message <text>,\n");
-    fs_file_writef(STDOUT, "                         -F <path>, --file <path>, --no-comment.\n");
+    fs_file_writef(STDOUT, "        For set and clear, comment options are -m <text>, --message <text>,\n");
+    fs_file_writef(STDOUT, "        -F <path>, --file <path>, and --no-comment.\n");
     fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    new [-m <text> | --message <text> |\n");
     fs_file_writef(STDOUT, "         -F <path> | --file <path>]\n");

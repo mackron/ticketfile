@@ -5,6 +5,11 @@ release-notes: 1.2.0
 
 Release Notes - v1.2.0
 
+## CLI
+
+- Added one combined history comment for metadata changes made by `set` and `clear`.
+- Added inline and file-based comment messages to metadata commands.
+
 ## Visual Studio Code
 
 - Fix a "Cannot read properties of null (reading 'ticketFolder')" error.
