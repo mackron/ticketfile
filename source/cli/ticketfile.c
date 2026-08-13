@@ -331,12 +331,10 @@ static int parse_metadata_command_options(int argumentCount, char** ppArguments,
 
             argumentIndex += 1;
             if (isFile) {
-                fs_result result = read_text_file(ppArguments[argumentIndex], (char**)&pOptions->pMessage,
-                    &pOptions->messageLength);
+                fs_result result = read_text_file(ppArguments[argumentIndex], (char**)&pOptions->pMessage, &pOptions->messageLength);
 
                 if (result != FS_SUCCESS) {
-                    fs_file_writef(STDERR, "Failed to read %s. %s.\n", ppArguments[argumentIndex],
-                        fs_result_description(result));
+                    fs_file_writef(STDERR, "Failed to read %s. %s.\n", ppArguments[argumentIndex], fs_result_description(result));
                     return 0;
                 }
             } else {
@@ -1644,26 +1642,18 @@ static int create_metadata_change_text(const char* pFileData, size_t fileDataSiz
 
         pExistingMetadata = find_ticket_metadata(pFileData, &parsedTicket, pArgument, key);
         if (hasValues && pExistingMetadata == NULL) {
-            if (!append_text(pChanges, pArgument + key.offset, key.length) ||
-                !append_text(pChanges, " set to ", 8) ||
-                !append_text(pChanges, pArgument + value.offset, value.length) ||
-                !append_text(pChanges, ".\n", 2)) {
+            int appendFailed = !append_text(pChanges, pArgument + key.offset, key.length) || !append_text(pChanges, " set to ", 8) || !append_text(pChanges, pArgument + value.offset, value.length) || !append_text(pChanges, ".\n", 2);
+            if (appendFailed) {
                 return 0;
             }
         } else if (hasValues && !text_range_equal(pFileData, pExistingMetadata->value, pArgument, value)) {
-            if (!append_text(pChanges, pArgument + key.offset, key.length) ||
-                !append_text(pChanges, " changed from ", 14) ||
-                !append_text(pChanges, pFileData + pExistingMetadata->value.offset, pExistingMetadata->value.length) ||
-                !append_text(pChanges, " to ", 4) ||
-                !append_text(pChanges, pArgument + value.offset, value.length) ||
-                !append_text(pChanges, ".\n", 2)) {
+            int appendFailed = !append_text(pChanges, pArgument + key.offset, key.length) || !append_text(pChanges, " changed from ", 14) || !append_text(pChanges, pFileData + pExistingMetadata->value.offset, pExistingMetadata->value.length) || !append_text(pChanges, " to ", 4) || !append_text(pChanges, pArgument + value.offset, value.length) || !append_text(pChanges, ".\n", 2);
+            if (appendFailed) {
                 return 0;
             }
         } else if (!hasValues && pExistingMetadata != NULL) {
-            if (!append_text(pChanges, pArgument + key.offset, key.length) ||
-                !append_text(pChanges, " removed (was ", 14) ||
-                !append_text(pChanges, pFileData + pExistingMetadata->value.offset, pExistingMetadata->value.length) ||
-                !append_text(pChanges, ").\n", 3)) {
+            int appendFailed = !append_text(pChanges, pArgument + key.offset, key.length) || !append_text(pChanges, " removed (was ", 14) || !append_text(pChanges, pFileData + pExistingMetadata->value.offset, pExistingMetadata->value.length) || !append_text(pChanges, ").\n", 3);
+            if (appendFailed) {
                 return 0;
             }
         }
@@ -1834,8 +1824,7 @@ static int set_ticket_metadata(const char* id, int argumentCount, char** ppArgum
         char* pUpdatedData;
         size_t updatedDataSize;
 
-        pUpdatedData = append_metadata_comment(pFileData, fileDataSize, &changes, addGeneratedComment,
-            pMessage, messageLength, &updatedDataSize);
+        pUpdatedData = append_metadata_comment(pFileData, fileDataSize, &changes, addGeneratedComment, pMessage, messageLength, &updatedDataSize);
         if (pUpdatedData == NULL) {
             fs_file_writef(STDERR, "Failed to allocate metadata comment data.\n");
             return 1;
@@ -1875,8 +1864,7 @@ static text_range metadata_line_range(const char* pText, size_t textLength, cons
     return line;
 }
 
-static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArguments,
-    int addGeneratedComment, const char* pMessage, size_t messageLength)
+static int clear_ticket_metadata(const char* id, int argumentCount, char** ppArguments, int addGeneratedComment, const char* pMessage, size_t messageLength)
 {
     fs_result result;
     char* pFilePath;
@@ -2443,14 +2431,10 @@ int main(int argc, char** argv)
         }
 
         if (hasValues) {
-            return set_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount,
-                argv + argumentIndex + 2, options.addGeneratedComment, options.pMessage,
-                options.messageLength);
+            return set_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount, argv + argumentIndex + 2, options.addGeneratedComment, options.pMessage, options.messageLength);
         }
 
-        return clear_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount,
-            argv + argumentIndex + 2, options.addGeneratedComment, options.pMessage,
-            options.messageLength);
+        return clear_ticket_metadata(argv[argumentIndex + 1], options.metadataArgumentCount, argv + argumentIndex + 2, options.addGeneratedComment, options.pMessage, options.messageLength);
     }
 
     if (strcmp(argv[argumentIndex], "new") == 0) {
