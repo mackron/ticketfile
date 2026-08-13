@@ -1,0 +1,23 @@
+assignee: David Reid
+status: closed
+version: 1.2.0
+
+---
+
+I've noticed that I'm always getting an extra space between comments in tickets due to lingering
+new characters. I want it to be "empty line/---/empty line/DATE - AUTHOR", but it's often times
+showing as "/empty line/empty line/---/empty line/DATE - AUTHOR". This should be cleaned up.
+
+Address this in both the CLI and VS Code.
+
+---
+
+2026-08-13 - Clanker
+
+Status changed from open to review.
+
+---
+
+2026-08-13 - David Reid
+
+Status changed from review to closed.

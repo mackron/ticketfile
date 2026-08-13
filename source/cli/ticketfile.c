@@ -1462,6 +1462,15 @@ static int has_comment_author(const char* pText, size_t textLength)
     return 0;
 }
 
+static size_t trim_trailing_newlines(const char* pText, size_t textLength)
+{
+    while (textLength > 0 && (pText[textLength - 1] == '\n' || pText[textLength - 1] == '\r')) {
+        textLength -= 1;
+    }
+
+    return textLength;
+}
+
 static int comment_on_ticket(const char* id)
 {
     fs_result result;
@@ -1535,11 +1544,8 @@ static int comment_on_ticket(const char* id)
         return 1;
     }
 
-    if (fileDataSize > 0 && pFileData[fileDataSize - 1] == '\n') {
-        pSeparator = "\n---\n\n";
-    } else {
-        pSeparator = "\n\n---\n\n";
-    }
+    fileDataSize = trim_trailing_newlines(pFileData, fileDataSize);
+    pSeparator = "\n\n---\n\n";
 
     separatorLength = strlen(pSeparator);
     finalNewlineLength = editedDataSize > 0 && pEditedData[editedDataSize - 1] == '\n' ? 0 : 1;
@@ -1684,7 +1690,8 @@ static char* append_metadata_comment(const char* pFileData, size_t fileDataSize,
         fs_file_writef(STDERR, "Warning: No author name was found for metadata comment.\n");
     }
 
-    pSeparator = fileDataSize > 0 && pFileData[fileDataSize - 1] == '\n' ? "\n---\n\n" : "\n\n---\n\n";
+    fileDataSize = trim_trailing_newlines(pFileData, fileDataSize);
+    pSeparator = "\n\n---\n\n";
     separatorLength = strlen(pSeparator);
     *pUpdatedDataSize = fileDataSize + separatorLength + commentHeaderLength + 2 + generatedLength +
         messageSeparatorLength + messageLength + finalNewlineLength;

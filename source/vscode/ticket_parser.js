@@ -149,10 +149,16 @@ function ticketMatchesFilters(ticket, filters)
     return filters.every((filter) => ticket.metadata.get(filter.key) === filter.value);
 }
 
+function trimTrailingNewlines(text)
+{
+    return text.replace(/[\r\n]+$/, "");
+}
+
 module.exports = {
     findMetadataLines,
     findStatusRange,
     parseTicket,
     parseMetadataFilters,
-    ticketMatchesFilters
+    ticketMatchesFilters,
+    trimTrailingNewlines
 };

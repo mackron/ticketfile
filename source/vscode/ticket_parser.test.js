@@ -1,7 +1,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
+const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters, trimTrailingNewlines } = require("./ticket_parser");
 
 const casesPath = path.join(__dirname, "..", "..", "tests", "cases");
 const caseNames = fs.readdirSync(casesPath, { withFileTypes: true })
@@ -63,6 +63,9 @@ assert.strictEqual(assigneesSetting.type, "array");
 assert.strictEqual(assigneesSetting.uniqueItems, true);
 assert.strictEqual(assigneesSetting.items.type, "string");
 assert.strictEqual(assigneesSetting.items.minLength, 1);
+assert.strictEqual(trimTrailingNewlines("Ticket.\n\n\n"), "Ticket.");
+assert.strictEqual(trimTrailingNewlines("Ticket.\r\n\r\n"), "Ticket.");
+assert.strictEqual(trimTrailingNewlines("Ticket."), "Ticket.");
 
 console.log(`SUMMARY: ${passedCount}/${caseNames.length} passed`);
 

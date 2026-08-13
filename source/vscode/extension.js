@@ -1,6 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
-const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
+const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters, trimTrailingNewlines } = require("./ticket_parser");
 
 const defaultStatusGroups = [
     { label: "Open", status: "open", expanded: true },
@@ -368,9 +368,8 @@ async function updateTicketStatus(ticketItem, status, ticketProvider)
 
         if (oldStatus !== undefined) {
             author = await getCommentAuthor();
-            const separator = updatedText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
-
-            updatedText += `${separator}${getCurrentDate()} - ${author}\n\nStatus changed from ${oldStatus} to ${status}.\n`;
+            updatedText = trimTrailingNewlines(updatedText);
+            updatedText += `\n\n---\n\n${getCurrentDate()} - ${author}\n\nStatus changed from ${oldStatus} to ${status}.\n`;
         }
 
         await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
@@ -458,8 +457,8 @@ async function updateTicketAssignee(ticketItem, assignee, ticketProvider)
         }
 
         const author = await getCommentAuthor();
-        const separator = updatedText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
-        updatedText += `${separator}${getCurrentDate()} - ${author}\n\n${changeMessage}\n`;
+        updatedText = trimTrailingNewlines(updatedText);
+        updatedText += `\n\n---\n\n${getCurrentDate()} - ${author}\n\n${changeMessage}\n`;
 
         await vscode.workspace.fs.writeFile(ticketItem.resourceUri, Buffer.from(updatedText, "utf8"));
         ticketProvider.refresh();
@@ -539,11 +538,12 @@ async function commentOnTicket(ticketItem)
         const document = await vscode.workspace.openTextDocument(ticketItem.resourceUri);
         const editor = await vscode.window.showTextDocument(document);
         const ticketText = document.getText();
-        const separator = ticketText.endsWith("\n") ? "\n---\n\n" : "\n\n---\n\n";
-        const commentTemplate = `${separator}${getCurrentDate()} - ${author}\n\n`;
-        const insertionPosition = document.positionAt(ticketText.length);
+        const trimmedTicketText = trimTrailingNewlines(ticketText);
+        const commentTemplate = `\n\n---\n\n${getCurrentDate()} - ${author}\n\n`;
+        const insertionPosition = document.positionAt(trimmedTicketText.length);
+        const trailingRange = new vscode.Range(insertionPosition, document.positionAt(ticketText.length));
         const inserted = await editor.edit((editBuilder) => {
-            editBuilder.insert(insertionPosition, commentTemplate);
+            editBuilder.replace(trailingRange, commentTemplate);
         });
 
         if (!inserted) {
@@ -551,7 +551,7 @@ async function commentOnTicket(ticketItem)
             return;
         }
 
-        const commentPosition = document.positionAt(ticketText.length + commentTemplate.length);
+        const commentPosition = document.positionAt(trimmedTicketText.length + commentTemplate.length);
 
         editor.selection = new vscode.Selection(commentPosition, commentPosition);
         editor.revealRange(new vscode.Range(commentPosition, commentPosition));

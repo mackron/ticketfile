@@ -5,6 +5,10 @@ release-notes: 1.2.0
 
 Release Notes - v1.2.0
 
+## General
+
+- Fixed excess blank lines before new ticket comments.
+
 ## CLI
 
 - Added one combined history comment for metadata changes made by `set` and `clear`.
