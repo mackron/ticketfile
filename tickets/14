@@ -1,0 +1,23 @@
+status: open
+
+---
+
+Explore automatic agent dispatch from ticket changes.
+
+Consider a local process that watches ticket folders and starts an AI coding agent when a ticket
+has a configured status and assignee, such as `status:ready` and `assignee:Clanker`.
+
+The design should cover safe ticket claiming, duplicate event handling, agent concurrency, Git
+branches or worktrees, failure states, logging, and configurable agent commands. A separate daemon
+is preferred so this can work without Visual Studio Code.
+
+Consider options for a normal daemon, but also a UI frontend for configuration and monitoring.
+
+Work will need to be done on Git worktrees rather than branching off the main repo because
+otherwise there is too much risk of having the state of the repo being pulled out from under me
+or other agents. Also need to consider how the worktree is cleaned up - I would rather not have
+to deal with that manually.
+
+Something will need to be considered regarding the agent asking for permission to do stuff. It
+should always be allowed to do things on it's own worktree, but never on the main repo. Not sure on
+the safety of this however. Consider.
