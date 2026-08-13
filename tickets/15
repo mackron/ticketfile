@@ -1,4 +1,4 @@
-status: open
+status: closed
 release-notes: 1.2.0
 
 ---
@@ -20,3 +20,9 @@ Release Notes - v1.2.0
 - Fix a "Cannot read properties of null (reading 'ticketFolder')" error.
 - Added an Assign To command with configured names, free-form input, and assignment history.
 - Added ticket creation from status-group context menus.
+
+---
+
+2026-08-14 - David Reid
+
+Status changed from open to closed.
