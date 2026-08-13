@@ -1,0 +1,15 @@
+priority: high
+status: review
+assignee: Clanker
+
+---
+
+Multiple metadata history test.
+
+---
+
+<COMMENT_HEADER>
+
+status changed from open to review.
+priority set to high.
+assignee changed from David Reid to Clanker.

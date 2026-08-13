@@ -1,0 +1,12 @@
+priority: high
+status: open
+
+---
+
+Added metadata history test.
+
+---
+
+<COMMENT_HEADER>
+
+priority set to high.

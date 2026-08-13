@@ -60,7 +60,7 @@ Development Checklist:
 - [x] Suppress generated change lines without suppressing an explicit user message.
 - [x] Skip unchanged metadata and avoid empty comments.
 - [x] Keep metadata and comment updates atomic.
-- [ ] Add tests for set, change, clear, multiple changes, and unchanged values.
+- [x] Add tests for set, change, clear, multiple changes, and unchanged values.
 - [ ] Add tests for message, file, suppression, invalid options, and failure atomicity.
 - [ ] Update CLI usage documentation.
 - [ ] Update release notes for ticket with `release-notes:1.2.0`.

@@ -1,0 +1,12 @@
+status: open
+assignee: Clanker
+
+---
+
+Changed metadata history test.
+
+---
+
+<COMMENT_HEADER>
+
+assignee changed from David Reid to Clanker.
