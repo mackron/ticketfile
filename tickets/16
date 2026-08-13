@@ -9,3 +9,5 @@ Release Notes - v1.3.0
 
 - Added a Close Ticket shortcut to ticket context menus.
 - Added a quick Create Ticket button to status groups.
+- Removed "Set Status..." and "Add Comment" quick buttons from status groups.
+- Replaced icon for "Set Status...".
