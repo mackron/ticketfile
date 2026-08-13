@@ -255,7 +255,7 @@ async function selectTicketFolder(ticketFolders, selectedItem)
     return selected === undefined || selected === null ? undefined : selected.ticketFolder;
 }
 
-async function createTicket(ticketFolder)
+async function createTicket(ticketFolder, status)
 {
     const workspaceFolders = vscode.workspace.workspaceFolders;
 
@@ -288,7 +288,7 @@ async function createTicket(ticketFolder)
             }
         }
 
-        const initialStatus = vscode.workspace.getConfiguration("ticketfile").get("initialStatus", "open").trim();
+        const initialStatus = status === undefined ? vscode.workspace.getConfiguration("ticketfile").get("initialStatus", "open").trim() : status;
         const ticketTemplate = initialStatus === "" ? "---\n\n" : `status: ${initialStatus}\n\n---\n\n`;
         const ticketContents = Buffer.from(ticketTemplate, "utf8");
         let newID = foundID ? highestID + 1n : 1n;
@@ -601,6 +601,7 @@ class TicketGroup extends vscode.TreeItem
         this.status = status;
         this.ticketFolder = ticketFolder;
         this.isFallback = isFallback;
+        this.contextValue = isFallback ? "ticketfileFallbackGroup" : "ticketfileTicketGroup";
         this.description = count.toString();
     }
 }
@@ -865,8 +866,9 @@ function activate(context)
     const createTicketCommand = vscode.commands.registerCommand("ticketfile.createTicket", async (selectedItem) => {
         const inferredItem = selectedItem === undefined || selectedItem === null ? treeView.selection[0] : selectedItem;
         const ticketFolder = await selectTicketFolder(ticketProvider.ticketFolders, inferredItem);
+        const status = inferredItem instanceof TicketGroup && !inferredItem.isFallback ? inferredItem.status : undefined;
 
-        await createTicket(ticketFolder);
+        await createTicket(ticketFolder, status);
         updateTicketWatchers();
         ticketProvider.refresh();
     });

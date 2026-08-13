@@ -121,6 +121,11 @@
                     "group": "1_modification@1"
                 },
                 {
+                    "command": "ticketfile.createTicket",
+                    "when": "view == ticketfile.tickets && viewItem == ticketfileTicketGroup",
+                    "group": "1_modification@1"
+                },
+                {
                     "command": "ticketfile.setTicketStatus",
                     "when": "view == ticketfile.tickets && viewItem == ticketfileTicket",
                     "group": "inline@1"
