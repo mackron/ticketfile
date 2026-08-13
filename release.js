@@ -24,7 +24,7 @@ function printUsage()
     console.log("        Write curated release notes for the current version.");
     console.log("");
     console.log("    --test");
-    console.log("        Run release-note extraction tests.");
+    console.log("        Run release validation tests.");
     console.log("");
     console.log("    -h, --help");
     console.log("        Show this help text.");
@@ -147,12 +147,12 @@ function getReleaseNotes(versionText, directory = ticketsDirectory)
 {
     const matches = [];
 
-    for (const name of fs.readdirSync(directory)) {
-        if (!/^\d+$/.test(name)) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (!entry.isFile() || !/^\d+$/.test(entry.name)) {
             continue;
         }
 
-        const ticketPath = path.join(directory, name);
+        const ticketPath = path.join(directory, entry.name);
         const text = fs.readFileSync(ticketPath, "utf8");
         const metadataSeparator = findTicketSeparator(text, 0);
 
@@ -172,8 +172,47 @@ function getReleaseNotes(versionText, directory = ticketsDirectory)
     return extractReleaseBody(matches[0]);
 }
 
+function getIncompleteReleaseTickets(versionText, directory = ticketsDirectory)
+{
+    const matches = [];
+
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (!entry.isFile() || !/^\d+$/.test(entry.name)) {
+            continue;
+        }
+
+        const ticketPath = path.join(directory, entry.name);
+        const text = fs.readFileSync(ticketPath, "utf8");
+        const metadataSeparator = findTicketSeparator(text, 0);
+
+        if (metadataSeparator === undefined) {
+            continue;
+        }
+
+        const metadata = readTicketMetadata(text, metadataSeparator.lineStart);
+        if (metadata.get("version") === versionText && metadata.get("status") !== "closed") {
+            matches.push({ number: entry.name, status: metadata.get("status") || "no status" });
+        }
+    }
+
+    matches.sort((ticketA, ticketB) => Number(ticketA.number) - Number(ticketB.number));
+    return matches;
+}
+
+function validateReleaseTickets(versionText, directory = ticketsDirectory)
+{
+    const matches = getIncompleteReleaseTickets(versionText, directory);
+
+    if (matches.length !== 0) {
+        const details = matches.map((ticket) =>
+            "    " + ticket.number + " (" + ticket.status + ")").join("\n");
+        throw new Error("Release " + versionText + " has non-closed tickets:\n" + details);
+    }
+}
+
 function writeReleaseNotes(versionText, outputPath)
 {
+    validateReleaseTickets(versionText);
     const notes = getReleaseNotes(versionText);
 
     fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
@@ -199,6 +238,7 @@ function runReleaseTests()
 
         writeTicket("1", validTicket);
         writeTicket("not-a-ticket", validTicket.replace("1.1.0", "ignored"));
+        fs.mkdirSync(path.join(temporaryDirectory, "3"));
         assert.strictEqual(getReleaseNotes("1.1.0", temporaryDirectory),
             "## CLI\n\n- Added metadata commands.\n");
         assert.throws(() => getReleaseNotes("1.1", temporaryDirectory), /No release-note ticket/);
@@ -210,11 +250,23 @@ function runReleaseTests()
             /no metadata separator/);
         assert.throws(() => extractReleaseBody("release-notes: 1.1.0\n\n---\n\nShort description.\n"),
             /empty release body/);
+
+        writeTicket("10", "status: closed\nversion: 1.2.0\n\n---\n\nClosed.\n");
+        writeTicket("4", "status: review\nversion: 1.2.0\n\n---\n\nReview.\n");
+        writeTicket("12", "version: 1.2.0\n\n---\n\nNo status.\n");
+        writeTicket("5", "status: open\nversion: 1.3.0\n\n---\n\nOther version.\n");
+        assert.deepStrictEqual(getIncompleteReleaseTickets("1.2.0", temporaryDirectory), [
+            { number: "4", status: "review" },
+            { number: "12", status: "no status" }
+        ]);
+        assert.throws(() => validateReleaseTickets("1.2.0", temporaryDirectory),
+            /Release 1\.2\.0 has non-closed tickets:\n    4 \(review\)\n    12 \(no status\)/);
+        assert.doesNotThrow(() => validateReleaseTickets("1.3.1", temporaryDirectory));
     } finally {
         fs.rmSync(temporaryDirectory, { recursive: true, force: true });
     }
 
-    console.log("PASS: release notes");
+    console.log("PASS: release checks");
 }
 
 function runGit(arguments, allowFailure)
@@ -417,6 +469,8 @@ async function main()
 
     const release = validateRelease(version);
     const tag = release.tag;
+
+    validateReleaseTickets(versionText);
 
     await validateContinuousIntegration(release.head);
 

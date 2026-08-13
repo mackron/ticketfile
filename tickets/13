@@ -1,0 +1,21 @@
+assignee: David Reid
+status: closed
+version: 1.2.0
+
+---
+
+Release script needs to check for opened tickets.
+
+If there are any non-closed tickets with "version" metadata items for the current release the release script needs to fail and report the tickets.
+
+---
+
+2026-08-13 - Clanker
+
+Status changed from open to review.
+
+---
+
+2026-08-13 - David Reid
+
+Status changed from review to closed.
