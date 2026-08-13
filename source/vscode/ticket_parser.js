@@ -33,6 +33,38 @@ function findStatusRange(text)
     return undefined;
 }
 
+function findMetadataLines(text, key)
+{
+    const ranges = [];
+    let cursor = 0;
+
+    while (cursor < text.length) {
+        let lineEnd = text.indexOf("\n", cursor);
+        if (lineEnd === -1) {
+            lineEnd = text.length;
+        }
+
+        const line = text.substring(cursor, lineEnd);
+        if (line.trim() === "---") {
+            break;
+        }
+
+        const match = /^([ \t\r]*)([^:]+?)([ \t]*:[ \t]*)(.*?)([ \t\r]*)$/.exec(line);
+        if (match !== null && match[2].trim() === key) {
+            ranges.push({
+                lineOffset: cursor,
+                lineLength: lineEnd - cursor + (lineEnd < text.length ? 1 : 0),
+                valueOffset: cursor + match[1].length + match[2].length + match[3].length,
+                valueLength: match[4].length
+            });
+        }
+
+        cursor = lineEnd + 1;
+    }
+
+    return ranges;
+}
+
 function parseTicket(text)
 {
     const metadata = new Map();
@@ -118,6 +150,7 @@ function ticketMatchesFilters(ticket, filters)
 }
 
 module.exports = {
+    findMetadataLines,
     findStatusRange,
     parseTicket,
     parseMetadataFilters,

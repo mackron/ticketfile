@@ -1,7 +1,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
+const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 const casesPath = path.join(__dirname, "..", "..", "tests", "cases");
 const caseNames = fs.readdirSync(casesPath, { withFileTypes: true })
@@ -50,6 +50,19 @@ assert.strictEqual(ticketMatchesFilters(filterTicket, parseMetadataFilters("stat
 assert.deepStrictEqual(findStatusRange("status: open\n\n---\n\nRange test.\n"), { offset: 8, length: 4 });
 assert.strictEqual(findStatusRange("Plain ticket.\n"), undefined);
 assert.strictEqual(parseTicket("assignee: David Reid\n\n---\n\nNo status.\n").hasMetadataSection, true);
+
+const metadataLineText = "status: open\n assignee : David Reid  \nassignee: Clanker\n\n---\n\nTicket.\n";
+assert.deepStrictEqual(findMetadataLines(metadataLineText, "assignee"), [
+    { lineOffset: 13, lineLength: 25, valueOffset: 25, valueLength: 10 },
+    { lineOffset: 38, lineLength: 18, valueOffset: 48, valueLength: 7 }
+]);
+
+const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"));
+const assigneesSetting = manifest.contributes.configuration.properties["ticketfile.assignees"];
+assert.strictEqual(assigneesSetting.type, "array");
+assert.strictEqual(assigneesSetting.uniqueItems, true);
+assert.strictEqual(assigneesSetting.items.type, "string");
+assert.strictEqual(assigneesSetting.items.minLength, 1);
 
 console.log(`SUMMARY: ${passedCount}/${caseNames.length} passed`);
 

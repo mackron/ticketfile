@@ -1,6 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
-const { findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
+const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters } = require("./ticket_parser");
 
 const defaultStatusGroups = [
     { label: "Open", status: "open", expanded: true },
@@ -406,38 +406,6 @@ async function setTicketStatus(ticketItem, ticketProvider)
     if (selected !== undefined) {
         await updateTicketStatus(ticketItem, selected.status, ticketProvider);
     }
-}
-
-function findMetadataLines(text, key)
-{
-    const ranges = [];
-    let cursor = 0;
-
-    while (cursor < text.length) {
-        let lineEnd = text.indexOf("\n", cursor);
-        if (lineEnd === -1) {
-            lineEnd = text.length;
-        }
-
-        const line = text.substring(cursor, lineEnd);
-        if (line.trim() === "---") {
-            break;
-        }
-
-        const match = /^([ \t\r]*)([^:]+?)([ \t]*:[ \t]*)(.*?)([ \t\r]*)$/.exec(line);
-        if (match !== null && match[2].trim() === key) {
-            ranges.push({
-                lineOffset: cursor,
-                lineLength: lineEnd - cursor + (lineEnd < text.length ? 1 : 0),
-                valueOffset: cursor + match[1].length + match[2].length + match[3].length,
-                valueLength: match[4].length
-            });
-        }
-
-        cursor = lineEnd + 1;
-    }
-
-    return ranges;
 }
 
 async function updateTicketAssignee(ticketItem, assignee, ticketProvider)

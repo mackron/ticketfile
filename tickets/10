@@ -44,7 +44,7 @@ Development Checklist:
 - [x] Add assignment history with the configured comment author.
 - [x] Keep metadata and history updates atomic.
 - [x] Refresh folder-aware ticket trees after assignment changes.
-- [ ] Add tests for configuration and metadata assignment behavior.
+- [x] Add tests for configuration and metadata assignment behavior.
 - [ ] Update VS Code extension documentation.
 - [ ] Update release notes for ticket with `release-notes:1.2.0`.
 - [ ] Run VS Code syntax and test checks.
