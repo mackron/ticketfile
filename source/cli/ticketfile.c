@@ -10,54 +10,6 @@ static fs_file* STDERR = NULL;
 
 static const char* g_pTicketsFolder = "tickets";
 
-static char* get_environment_variable(const char* pName)
-{
-    char* pValue;
-    size_t valueLength;
-
-    #if defined(_MSC_VER)
-    {
-        valueLength = 0;
-        if (getenv_s(&valueLength, NULL, 0, pName) != 0 || valueLength == 0) {
-            return NULL;
-        }
-
-        pValue = (char*)malloc(valueLength);
-        if (pValue == NULL) {
-            return NULL;
-        }
-
-        if (getenv_s(&valueLength, pValue, valueLength, pName) != 0) {
-            free(pValue);
-            return NULL;
-        }
-    }
-    #else
-    {
-        const char* pEnvironmentValue = getenv(pName);
-
-        if (pEnvironmentValue == NULL) {
-            return NULL;
-        }
-
-        valueLength = strlen(pEnvironmentValue) + 1;
-        pValue = (char*)malloc(valueLength);
-        if (pValue == NULL) {
-            return NULL;
-        }
-
-        memcpy(pValue, pEnvironmentValue, valueLength);
-    }
-    #endif
-
-    return pValue;
-}
-
-static void print_version(void)
-{
-    fs_file_writef(STDOUT, "ticket v%d.%d.%d\n", TICKETFILE_VERSION_MAJOR, TICKETFILE_VERSION_MINOR, TICKETFILE_VERSION_PATCH);
-}
-
 static void print_usage(const char* pExecutablePath)
 {
     fs_file_writef(STDOUT, "USAGE:\n");
@@ -103,6 +55,54 @@ static void print_usage(const char* pExecutablePath)
     fs_file_writef(STDOUT, "\n");
     fs_file_writef(STDOUT, "    comment <id>\n");
     fs_file_writef(STDOUT, "        Open an editor and append a dated comment to the ticket.\n");
+}
+
+static void print_version(void)
+{
+    fs_file_writef(STDOUT, "ticket v%d.%d.%d\n", TICKETFILE_VERSION_MAJOR, TICKETFILE_VERSION_MINOR, TICKETFILE_VERSION_PATCH);
+}
+
+static char* get_environment_variable(const char* pName)
+{
+    char* pValue;
+    size_t valueLength;
+
+    #if defined(_MSC_VER)
+    {
+        valueLength = 0;
+        if (getenv_s(&valueLength, NULL, 0, pName) != 0 || valueLength == 0) {
+            return NULL;
+        }
+
+        pValue = (char*)malloc(valueLength);
+        if (pValue == NULL) {
+            return NULL;
+        }
+
+        if (getenv_s(&valueLength, pValue, valueLength, pName) != 0) {
+            free(pValue);
+            return NULL;
+        }
+    }
+    #else
+    {
+        const char* pEnvironmentValue = getenv(pName);
+
+        if (pEnvironmentValue == NULL) {
+            return NULL;
+        }
+
+        valueLength = strlen(pEnvironmentValue) + 1;
+        pValue = (char*)malloc(valueLength);
+        if (pValue == NULL) {
+            return NULL;
+        }
+
+        memcpy(pValue, pEnvironmentValue, valueLength);
+    }
+    #endif
+
+    return pValue;
 }
 
 
