@@ -910,10 +910,19 @@ function activate(context)
         }
 
         for (const ticketFolder of ticketProvider.ticketFolders) {
+            const folderPattern = new vscode.RelativePattern(workspaceFolders[0], ticketFolder.path);
             const ticketPattern = new vscode.RelativePattern(workspaceFolders[0], `${ticketFolder.path}/*`);
+            const folderWatcher = vscode.workspace.createFileSystemWatcher(folderPattern);
             const ticketWatcher = vscode.workspace.createFileSystemWatcher(ticketPattern);
+            const handleFolderChange = () => {
+                updateTicketWatchers();
+                ticketProvider.refresh();
+            };
 
             watcherDisposables.push(
+                folderWatcher.onDidCreate(handleFolderChange),
+                folderWatcher.onDidDelete(handleFolderChange),
+                folderWatcher,
                 ticketWatcher.onDidCreate(() => ticketProvider.refresh()),
                 ticketWatcher.onDidChange(() => ticketProvider.refresh()),
                 ticketWatcher.onDidDelete(() => ticketProvider.refresh()),
