@@ -1,5 +1,6 @@
 const vscode = require("vscode");
 const { execFile } = require("child_process");
+const path = require("path");
 const { findMetadataLines, findStatusRange, parseMetadataFilters, parseTicket, ticketMatchesFilters, trimTrailingNewlines } = require("./ticket_parser");
 
 const defaultStatusGroups = [
@@ -833,6 +834,8 @@ function activate(context)
 
     const ticketProvider = new TicketProvider(ticketFolderConfiguration.folders, statusGroupConfiguration.groups, assigneeConfiguration.assignees);
     const treeView = vscode.window.createTreeView("ticketfile.tickets", { treeDataProvider: ticketProvider });
+    let selectedTaskTicket;
+    let ticketTaskInProgress = false;
 
     function updateFilterDisplay()
     {
@@ -881,6 +884,70 @@ function activate(context)
         const inferredItem = ticketItem === undefined || ticketItem === null ? treeView.selection[0] : ticketItem;
         return updateTicketStatus(inferredItem, "closed", ticketProvider);
     });
+    const runTicketTaskCommand = vscode.commands.registerCommand("ticketfile.runTicketTask", async (ticketItem) => {
+        const inferredItem = ticketItem === undefined || ticketItem === null ? treeView.selection[0] : ticketItem;
+
+        if (!(inferredItem instanceof TicketItem)) {
+            vscode.window.showErrorMessage("Select a ticket before running a task.");
+            return;
+        }
+        if (ticketTaskInProgress) {
+            vscode.window.showInformationMessage("Another ticket task is starting.");
+            return;
+        }
+
+        ticketTaskInProgress = true;
+        try {
+            const tasks = await vscode.tasks.fetchTasks();
+
+            if (tasks.length === 0) {
+                vscode.window.showInformationMessage("No Visual Studio Code tasks are available.");
+                return;
+            }
+
+            const taskItems = tasks.map((task) => ({
+                label: task.name,
+                description: task.source,
+                task
+            })).sort((itemA, itemB) => itemA.label.localeCompare(itemB.label));
+            const selected = await vscode.window.showQuickPick(taskItems, {
+                title: `Run Task for Ticket ${inferredItem.fileName}`,
+                placeHolder: "Select a task"
+            });
+
+            if (selected === undefined) {
+                return;
+            }
+
+            selectedTaskTicket = inferredItem;
+            await vscode.tasks.executeTask(selected.task);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to run task. ${error.message}`);
+        } finally {
+            selectedTaskTicket = undefined;
+            ticketTaskInProgress = false;
+        }
+    });
+    const selectedTicketFileNameCommand = vscode.commands.registerCommand(
+        "ticketfile.selectedTicketFileName",
+        () => {
+            if (selectedTaskTicket === undefined) {
+                throw new Error("Run this task from a ticket context menu.");
+            }
+
+            return selectedTaskTicket.fileName;
+        }
+    );
+    const selectedTicketDirectoryCommand = vscode.commands.registerCommand(
+        "ticketfile.selectedTicketDirectory",
+        () => {
+            if (selectedTaskTicket === undefined) {
+                throw new Error("Run this task from a ticket context menu.");
+            }
+
+            return path.dirname(selectedTaskTicket.resourceUri.fsPath);
+        }
+    );
     const assignTicketCommand = vscode.commands.registerCommand("ticketfile.assignTicket", (ticketItem) => {
         const inferredItem = ticketItem === undefined || ticketItem === null ? treeView.selection[0] : ticketItem;
         return assignTicket(inferredItem, ticketProvider);
@@ -889,7 +956,7 @@ function activate(context)
         return deleteTicket(ticketItem, ticketProvider);
     });
 
-    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, closeTicketCommand, assignTicketCommand, deleteTicketCommand
+    context.subscriptions.push(ticketProvider.changeTreeDataEmitter, treeView, refreshCommand, filterCommand, clearFilterCommand, createTicketCommand, openTicketCommand, addCommentCommand, setTicketStatusCommand, closeTicketCommand, runTicketTaskCommand, selectedTicketFileNameCommand, selectedTicketDirectoryCommand, assignTicketCommand, deleteTicketCommand
     );
 
     updateFilterDisplay();

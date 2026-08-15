@@ -1,0 +1,45 @@
+assignee: David Reid
+status: review
+version: 1.3.0
+
+---
+
+Add ticket-aware task execution to Visual Studio Code.
+
+Add a "Run Task..." action to individual ticket context menus. The ticket does not need to be open
+in an editor. Selecting the action must retain the selected ticket, show available Visual Studio
+Code tasks, and run the chosen task through the Visual Studio Code task API.
+
+Expose the selected ticket filename and directory as separate command variables for use in
+`tasks.json`:
+
+```text
+${command:ticketfile.selectedTicketFileName}
+${command:ticketfile.selectedTicketDirectory}
+```
+
+The directory variable must identify the configured ticket directory that owns the selected
+ticket. The filename variable must contain the ticket filename without its directory. Values must
+come from the selected tree item and must not depend on the active editor.
+
+Keep task definitions and command behavior in Visual Studio Code configuration. Worktree removal,
+branch deletion, ticket closure, and other task-specific operations are outside this work item.
+
+Development Checklist:
+
+- [x] Add a Run Task... command to ticket context menus.
+- [x] Fetch and display available Visual Studio Code tasks.
+- [x] Run the selected task through the Visual Studio Code task API.
+- [x] Retain the selected ticket while task variables are resolved.
+- [x] Add command variables for the ticket filename and directory.
+- [x] Ensure task execution does not depend on an open or active ticket editor.
+- [x] Handle no-task, cancelled-selection, and task-execution errors.
+- [x] Update Visual Studio Code documentation.
+- [x] Update version 1.3.0 release notes.
+- [x] Run Visual Studio Code syntax and test checks.
+
+---
+
+2026-08-15 - Clanker
+
+Status changed from open to review.

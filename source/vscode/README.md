@@ -67,6 +67,28 @@ metadata.
 Set `ticketfile.assignees` in user settings to use the same names in all projects. A workspace
 setting replaces the complete user list. User and workspace arrays do not merge.
 
+## Ticket Tasks
+
+Use **Run Task...** from a ticket context menu to run a Visual Studio Code task against that
+ticket. The ticket does not need to be open in the editor. Ticketfile provides separate command
+variables for the selected ticket filename and directory:
+
+```json
+{
+    "label": "Process Ticket",
+    "type": "process",
+    "command": "/path/to/process-ticket",
+    "args": [
+        "${command:ticketfile.selectedTicketDirectory}",
+        "${command:ticketfile.selectedTicketFileName}"
+    ],
+    "problemMatcher": []
+}
+```
+
+These variables are available only when Ticketfile starts the task from a ticket. They do not
+depend on the active editor.
+
 ## Status Groups
 
 Use `ticketfile.statusGroups` to configure groups in the ticket tree. The array

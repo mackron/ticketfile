@@ -12,3 +12,4 @@ Release Notes - v1.3.0
 - Fixed automatic refresh when an external tool creates the first ticket in a project.
 - Removed "Set Status..." and "Add Comment" quick buttons from status groups.
 - Replaced icon for "Set Status...".
+- Added ticket-aware Visual Studio Code task execution.
